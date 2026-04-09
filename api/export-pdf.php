@@ -1,83 +1,73 @@
 <?php
 require_once '../includes/auth.php';
 require_auth();
+require_role('Reviewer');
 
 require_once '../includes/db.php';
 $pdo = get_db_connection();
 
 require_once '../vendor/autoload.php';
 
-/* -------------------------
-   Validate ID
--------------------------- */
-$id = $_GET['id'] ?? null;
-if (!$id) {
-    die('Application ID is required');
+// Validate ID
+$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+if ($id <= 0) {
+    http_response_code(400);
+    die('Valid application ID is required');
 }
 
-/* -------------------------
-   Fetch Application
--------------------------- */
-$stmt = $pdo->prepare("SELECT * FROM applications WHERE id = ?");
+// Fetch specific columns
+$stmt = $pdo->prepare("
+    SELECT id, surname, first_name, other_names, telephone, email,
+           position_rank, short_courses_rmu, familiarisation_isps_gma,
+           attachment, medicals, sea_experience, total_sea_experience_years,
+           last_ship_type, submitted_at
+    FROM applications WHERE id = ?
+");
 $stmt->execute([$id]);
-$app = $stmt->fetch(PDO::FETCH_ASSOC);
+$app = $stmt->fetch();
 
 if (!$app) {
+    http_response_code(404);
     die('Application not found');
 }
 
-/* -------------------------
-   Sanitize Data
--------------------------- */
-$e = fn($v) => htmlspecialchars((string)$v);
+// Sanitize
+$e = fn($v) => htmlspecialchars((string)($v ?? ''));
 
-$surname       = $e($app['surname']);
-$firstName     = $e($app['first_name']);
-$otherNames    = $e($app['other_names'] ?? '');
-$telephone     = $e($app['telephone']);
-$email         = $e($app['email']);
-$rank          = $e($app['position_rank']);
-$lastShip      = $e($app['last_ship_type'] ?? '');
-$submittedAt   = date('F d, Y \a\t g:i A', strtotime($app['submitted_at']));
-$generatedAt   = date('F d, Y \a\t g:i A');
+$surname     = $e($app['surname']);
+$firstName   = $e($app['first_name']);
+$otherNames  = $e($app['other_names']);
+$telephone   = $e($app['telephone']);
+$email       = $e($app['email']);
+$rank        = $e($app['position_rank']);
+$lastShip    = $e($app['last_ship_type']);
+$submittedAt = date('F d, Y \a\t g:i A', strtotime($app['submitted_at']));
+$generatedAt = date('F d, Y \a\t g:i A');
 
-/* -------------------------
-   Sea Experience
--------------------------- */
+// Sea experience
 $years = 0;
 $months = 0;
 if (!empty($app['total_sea_experience_years'])) {
     $total = (float)$app['total_sea_experience_years'];
     $years = floor($total);
     $months = round(($total - $years) * 12);
-    if ($months === 12) {
-        $years++;
-        $months = 0;
-    }
+    if ($months === 12) { $years++; $months = 0; }
 }
 
-/* -------------------------
-   Badge Helper
--------------------------- */
-function badge($value) {
+// Badge helper
+$badge = function ($value) {
     if ($value === 'Yes') {
-        return '<span style="background:#d4edda;color:#155724;padding:4px 8px;border-radius:3px;">✓ Yes</span>';
+        return '<span style="background:#d4edda;color:#155724;padding:4px 8px;border-radius:3px;">&#10003; Yes</span>';
     }
-    return '<span style="background:#f8d7da;color:#721c24;padding:4px 8px;border-radius:3px;">✗ No</span>';
-}
+    return '<span style="background:#f8d7da;color:#721c24;padding:4px 8px;border-radius:3px;">&#10007; No</span>';
+};
 
-/* -------------------------
-   Prepare Badge Variables
--------------------------- */
-$shortCoursesBadge  = badge($app['short_courses_rmu']);
-$ispsBadge          = badge($app['familiarisation_isps_gma']);
-$attachmentBadge    = badge($app['attachment']);
-$medicalsBadge      = badge($app['medicals']);
-$experienceBadge    = badge($app['sea_experience']);
+$shortCoursesBadge = $badge($app['short_courses_rmu']);
+$ispsBadge         = $badge($app['familiarisation_isps_gma']);
+$attachmentBadge   = $badge($app['attachment'] ?? 'No');
+$medicalsBadge     = $badge($app['medicals'] ?? 'No');
+$experienceBadge   = $badge($app['sea_experience'] ?? 'No');
 
-/* -------------------------
-   HTML Content
--------------------------- */
 $html = <<<HTML
 <style>
 body { font-family: helvetica, sans-serif; font-size: 11px; color: #333; }
@@ -91,7 +81,7 @@ h1 { background:#003d6b;color:#fff;padding:15px;text-align:center; }
 .footer { margin-top:30px;font-size:9px;color:#888;text-align:center; }
 </style>
 
-<h1>Submission Details Report</h1>
+<h1>NSPD Ghana - Submission Details Report</h1>
 
 <div class="section">
 <div class="section-title">Personal Information</div>
@@ -126,13 +116,10 @@ h1 { background:#003d6b;color:#fff;padding:15px;text-align:center; }
 </div>
 
 <div class="footer">
-Generated on $generatedAt | Report ID: $id
+Generated on $generatedAt | Application ID: $id | NSPD Ghana
 </div>
 HTML;
 
-/* -------------------------
-   Generate PDF
--------------------------- */
 $pdf = new TCPDF();
 $pdf->SetMargins(15, 15, 15);
 $pdf->SetAutoPageBreak(true, 15);

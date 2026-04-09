@@ -1,0 +1,24 @@
+# Environment
+.env
+
+# Dependencies
+/vendor/
+/node_modules/
+/.next/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SQL dumps with real data
+*.sql
+!scripts/*.sql
+
+# Composer
+composer.lock

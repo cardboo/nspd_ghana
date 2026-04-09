@@ -1,4 +1,8 @@
--- Create users table for authentication
+-- =============================================
+-- NSPD Ghana v2 — Database Schema
+-- =============================================
+
+-- Users table for authentication & RBAC
 CREATE TABLE IF NOT EXISTS `users` (
   `id` int NOT NULL AUTO_INCREMENT,
   `username` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
@@ -15,8 +19,5 @@ CREATE TABLE IF NOT EXISTS `users` (
 
 -- Insert default admin user (password: admin123)
 INSERT INTO `users` (`username`, `password_hash`, `full_name`, `role`, `email`) VALUES
-('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Admin User', 'Administrator', 'admin@maritime.port');
-
--- Insert a sample reviewer (password: reviewer123)
-INSERT INTO `users` (`username`, `password_hash`, `full_name`, `role`, `email`) VALUES
-('reviewer', '$2y$10$eR8FKXhM0XjKQVzwYkGXsuBJZzXqVJ5JZQX5rW5gQX5rW5gQX5rW5', 'Review User', 'Reviewer', 'reviewer@maritime.port');
+('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Admin User', 'Administrator', 'admin@maritime.port')
+ON DUPLICATE KEY UPDATE `username` = `username`;
