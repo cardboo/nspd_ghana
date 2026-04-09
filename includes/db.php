@@ -7,8 +7,24 @@
  * Load .env file into environment variables
  */
 function load_env() {
-    $envFile = __DIR__ . '/../.env';
-    if (!file_exists($envFile)) {
+    // Try multiple possible locations for .env
+    $candidates = [
+        __DIR__ . '/../.env',
+        dirname(__DIR__) . '/.env',
+        $_SERVER['DOCUMENT_ROOT'] . '/.env',
+        getcwd() . '/.env',
+    ];
+
+    $envFile = null;
+    foreach ($candidates as $path) {
+        $resolved = realpath($path);
+        if ($resolved && is_file($resolved)) {
+            $envFile = $resolved;
+            break;
+        }
+    }
+
+    if ($envFile === null) {
         die('Missing .env file. Copy .env.example to .env and configure it.');
     }
 
