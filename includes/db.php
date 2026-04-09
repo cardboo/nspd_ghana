@@ -1,42 +1,32 @@
 <?php
 /**
- * Database configuration — reads from .env file
+ * Database configuration
+ * Reads from .env file if available, falls back to defaults.
  */
+
+// Project root — resolved once from this file's known location
+define('PROJECT_ROOT', realpath(__DIR__ . '/..'));
 
 /**
- * Load .env file into environment variables
+ * Load .env file into $_ENV
  */
 function load_env() {
-    // Try multiple possible locations for .env
-    $candidates = [
-        __DIR__ . '/../.env',
-        dirname(__DIR__) . '/.env',
-        $_SERVER['DOCUMENT_ROOT'] . '/.env',
-        getcwd() . '/.env',
-    ];
+    $envFile = PROJECT_ROOT . DIRECTORY_SEPARATOR . '.env';
 
-    $envFile = null;
-    foreach ($candidates as $path) {
-        $resolved = realpath($path);
-        if ($resolved && is_file($resolved)) {
-            $envFile = $resolved;
-            break;
-        }
-    }
-
-    if ($envFile === null) {
-        die('Missing .env file. Copy .env.example to .env and configure it.');
+    if (!is_file($envFile) || !is_readable($envFile)) {
+        // No .env found — defaults in get_db_connection() will be used
+        return;
     }
 
     $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     foreach ($lines as $line) {
         $line = trim($line);
-        if ($line === '' || str_starts_with($line, '#')) {
+        if ($line === '' || $line[0] === '#') {
             continue;
         }
         if (str_contains($line, '=')) {
             [$key, $value] = explode('=', $line, 2);
-            $key = trim($key);
+            $key   = trim($key);
             $value = trim($value);
             if (!array_key_exists($key, $_ENV)) {
                 $_ENV[$key] = $value;
