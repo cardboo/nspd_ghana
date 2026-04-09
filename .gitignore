@@ -1,10 +1,6 @@
-# Environment
-.env
-
 # Dependencies
 /vendor/
 /node_modules/
-/.next/
 
 # IDE
 .idea/
