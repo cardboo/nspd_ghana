@@ -35,6 +35,14 @@
     '</div>';
   }
 
+  function verifyBadge(status) {
+    var value = status || 'Pending';
+    var cls = value === 'Verified' ? 'status-approved'
+      : value === 'Rejected' ? 'status-rejected' : 'status-pending';
+    var label = value === 'Pending' ? 'Pending review' : value;
+    return '<span class="status-badge ' + cls + '">' + esc(label) + '</span>';
+  }
+
   function renderStatus(app) {
     var html = '';
     html += detailItem('Current Status', statusBadge(app.status));
@@ -327,15 +335,25 @@
           return;
         }
         container.innerHTML = '<div class="table-container"><table><thead><tr>' +
-          '<th>Type</th><th>File</th><th>Size</th><th>Uploaded</th><th></th>' +
+          '<th>Type</th><th>File</th><th>Size</th><th>Uploaded</th><th>Verification</th><th></th>' +
           '</tr></thead><tbody>' +
           docs.map(function (doc) {
+            var verifyControls = '';
+            if (isReviewer()) {
+              if (doc.verify_status !== 'Verified') {
+                verifyControls += ' <button class="link-primary text-danger-action" style="color:#10b981;" data-verify="' + doc.id + '" data-set="Verified">Verify</button>';
+              }
+              if (doc.verify_status !== 'Rejected') {
+                verifyControls += ' <button class="text-danger-action" data-verify="' + doc.id + '" data-set="Rejected">Reject</button>';
+              }
+            }
             return '<tr>' +
               '<td>' + esc(doc.doc_type) + '</td>' +
               '<td><a class="link-primary" target="_blank" href="/api/documents/' + doc.id + '/download">' +
                 esc(doc.original_name) + '</a></td>' +
               '<td class="text-sm">' + fmtSize(doc.size_bytes) + '</td>' +
               '<td class="text-sm">' + fmtDateShort(doc.uploaded_at) + '</td>' +
+              '<td>' + verifyBadge(doc.verify_status) + verifyControls + '</td>' +
               '<td>' + (isReviewer()
                 ? '<button class="text-danger-action" data-doc="' + doc.id + '">Delete</button>'
                 : '') + '</td>' +
@@ -348,6 +366,18 @@
             API.fetch('/api/documents/' + button.getAttribute('data-doc'), { method: 'DELETE' })
               .then(function () { loadDocuments(); })
               .catch(function (error) { console.error('Delete failed:', error); });
+          });
+        });
+
+        container.querySelectorAll('button[data-verify]').forEach(function (button) {
+          button.addEventListener('click', function () {
+            API.fetch('/api/documents/' + button.getAttribute('data-verify') + '/verify', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: button.getAttribute('data-set') })
+            })
+              .then(function () { loadDocuments(); })
+              .catch(function (error) { console.error('Verify failed:', error); });
           });
         });
       })

@@ -143,6 +143,14 @@ class TotpDisableRequest(BaseModel):
     code: str = Field(..., min_length=6, max_length=8)
 
 
+class ClaimRequest(BaseModel):
+    application_id: int = Field(..., gt=0)
+
+
+class DocumentVerifyRequest(BaseModel):
+    status: Literal["Verified", "Rejected", "Pending"]
+
+
 class ApplicationForm(BaseModel):
     """Fields a seafarer fills in — mirrors the applications table columns.
 

@@ -11,9 +11,33 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_client_ip, get_current_user, require_role
 from ..database import get_db
+from ..schemas import DocumentVerifyRequest
 from ..services import audit_service, document_service, storage_service
 
 router = APIRouter(prefix="/api/documents", tags=["Documents"])
+
+
+@router.put("/{document_id}/verify")
+def verify_document(
+    document_id: int,
+    body: DocumentVerifyRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_role("Reviewer")),
+):
+    """Mark an uploaded document as Verified / Rejected (or back to Pending)."""
+    document = document_service.get_or_404(db, document_id)
+    document = document_service.set_verify_status(db, document, body.status, user["id"])
+    audit_service.log(
+        db,
+        audit_service.DOCUMENT_VERIFIED,
+        user=user,
+        entity="application",
+        entity_id=document.application_id,
+        details=f"{document.original_name}: {body.status}",
+        ip=get_client_ip(request),
+    )
+    return {"document": document_service.serialize(document)}
 
 
 @router.get("/{document_id}/download")

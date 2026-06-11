@@ -43,6 +43,7 @@ from ..models import Applicant, Document
 from ..schemas import (
     ApplicationForm,
     CertificationForm,
+    ClaimRequest,
     CompleteResetRequest,
     ForgotPasswordRequest,
     PortalLoginRequest,
@@ -267,11 +268,36 @@ def me(
 ):
     applicant = _get_applicant_or_401(db, claims)
     application = portal_service.get_my_application(db, applicant.id)
+    # Unclaimed legacy records matching this verified email — offered for claiming
+    claimable = [] if application else portal_service.list_claimable(db, applicant)
     return {
         "applicant": portal_service.serialize_applicant(applicant),
         "application_status": application.status if application else None,
         "application_id": application.id if application else None,
+        "claimable": claimable,
     }
+
+
+@router.post("/claim")
+def claim_application(
+    body: ClaimRequest,
+    request: Request,
+    claims: dict = Depends(get_current_applicant),
+    db: Session = Depends(get_db),
+):
+    """Link an unclaimed legacy application (matched by verified email) to this account."""
+    applicant = _get_applicant_or_401(db, claims)
+    application = portal_service.claim_application(db, applicant, body.application_id)
+    audit_service.log(
+        db,
+        audit_service.APPLICATION_CLAIMED,
+        username=throttle_service.portal_identity(applicant.email),
+        entity="application",
+        entity_id=application.id,
+        details=f"claimed by portal account #{applicant.id} ({applicant.email})",
+        ip=get_client_ip(request),
+    )
+    return {"application": portal_service.serialize_portal_application(application)}
 
 
 # ──────────────────────────────────────────────
@@ -374,10 +400,10 @@ def add_certification(
     db: Session = Depends(get_db),
 ):
     application = _get_own_application_or_404(db, claims["id"])
-    if application.status not in portal_service.EDITABLE_STATUSES:
+    if application.status not in portal_service.ATTACHMENT_STATUSES:
         raise HTTPException(
             status_code=403,
-            detail=f"Your application is {application.status} and certifications can no longer be changed.",
+            detail=portal_service.attachments_locked_detail(application.status),
         )
     cert = certification_service.create(db, application.id, body, added_by=None)
     audit_service.log(
@@ -406,10 +432,10 @@ def delete_certification(
         raise HTTPException(status_code=404, detail="Certification not found")
     if cert.added_by is not None:
         raise HTTPException(status_code=403, detail="Records added by GMA staff cannot be removed")
-    if application.status not in portal_service.EDITABLE_STATUSES:
+    if application.status not in portal_service.ATTACHMENT_STATUSES:
         raise HTTPException(
             status_code=403,
-            detail=f"Your application is {application.status} and certifications can no longer be changed.",
+            detail=portal_service.attachments_locked_detail(application.status),
         )
 
     title = cert.title
@@ -447,10 +473,10 @@ def add_voyage(
     db: Session = Depends(get_db),
 ):
     application = _get_own_application_or_404(db, claims["id"])
-    if application.status not in portal_service.EDITABLE_STATUSES:
+    if application.status not in portal_service.ATTACHMENT_STATUSES:
         raise HTTPException(
             status_code=403,
-            detail=f"Your application is {application.status} and voyage records can no longer be changed.",
+            detail=portal_service.attachments_locked_detail(application.status),
         )
     voyage = voyage_service.create(db, application.id, body, added_by=None)
     audit_service.log(
@@ -479,10 +505,10 @@ def delete_voyage(
         raise HTTPException(status_code=404, detail="Voyage not found")
     if voyage.added_by is not None:
         raise HTTPException(status_code=403, detail="Records added by GMA staff cannot be removed")
-    if application.status not in portal_service.EDITABLE_STATUSES:
+    if application.status not in portal_service.ATTACHMENT_STATUSES:
         raise HTTPException(
             status_code=403,
-            detail=f"Your application is {application.status} and voyage records can no longer be changed.",
+            detail=portal_service.attachments_locked_detail(application.status),
         )
 
     vessel = voyage.vessel_name
@@ -528,10 +554,10 @@ async def upload_document(
     db: Session = Depends(get_db),
 ):
     application = _get_own_application_or_404(db, claims["id"])
-    if application.status not in portal_service.EDITABLE_STATUSES:
+    if application.status not in portal_service.ATTACHMENT_STATUSES:
         raise HTTPException(
             status_code=403,
-            detail=f"Your application is {application.status} and documents can no longer be changed.",
+            detail=portal_service.attachments_locked_detail(application.status),
         )
 
     existing = db.query(func.count(Document.id)).filter(
@@ -586,10 +612,10 @@ def delete_document(
         raise HTTPException(status_code=404, detail="Document not found")
     if document.uploaded_by is not None:
         raise HTTPException(status_code=403, detail="Documents added by GMA staff cannot be removed")
-    if application.status not in portal_service.EDITABLE_STATUSES:
+    if application.status not in portal_service.ATTACHMENT_STATUSES:
         raise HTTPException(
             status_code=403,
-            detail=f"Your application is {application.status} and documents can no longer be changed.",
+            detail=portal_service.attachments_locked_detail(application.status),
         )
 
     storage_service.delete(document.storage_driver, document.storage_key)

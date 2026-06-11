@@ -45,6 +45,14 @@
     return '<span class="status-badge ' + cls + '">' + esc(status) + '</span>';
   }
 
+  function verifyBadge(status) {
+    var value = status || 'Pending';
+    var cls = value === 'Verified' ? 'status-approved'
+      : value === 'Rejected' ? 'status-rejected' : 'status-pending';
+    var label = value === 'Pending' ? 'Pending review' : value;
+    return '<span class="status-badge ' + cls + '">' + esc(label) + '</span>';
+  }
+
   // ── Form state ──
 
   function fillForm(app) {
@@ -143,19 +151,27 @@
         document.getElementById('formTitle').textContent = 'Your Application (editable while Pending)';
         document.getElementById('saveButton').textContent = 'Save Changes';
       }
-      document.getElementById('uploadForm').style.display = '';
-      document.getElementById('certForm').style.display = '';
-      document.getElementById('voyageForm').style.display = '';
     } else {
       setFormDisabled(true);
       document.getElementById('formTitle').textContent = 'Your Application';
-      showBox('lockNotice',
-        'Your application is ' + application.status + ' and can no longer be edited. ' +
-        'Contact the Ghana Maritime Authority if a correction is needed.');
-      document.getElementById('uploadForm').style.display = 'none';
-      document.getElementById('certForm').style.display = 'none';
-      document.getElementById('voyageForm').style.display = 'none';
+      if (application.attachments_editable) {
+        // Approved: details locked, but the living file stays open
+        showBox('lockNotice',
+          'Your application is ' + application.status + '. Your submitted details are locked, ' +
+          'but you can still upload renewed documents and keep your certifications and sea service up to date.');
+      } else {
+        showBox('lockNotice',
+          'Your application is ' + application.status + ' and cannot be changed while it is being reviewed. ' +
+          'Contact the Ghana Maritime Authority if a correction is needed.');
+      }
     }
+
+    // Documents, certifications, and voyages follow the attachment rule
+    // (open while Pending/Rejected/Approved, frozen during review)
+    var attachDisplay = application.attachments_editable ? '' : 'none';
+    document.getElementById('uploadForm').style.display = attachDisplay;
+    document.getElementById('certForm').style.display = attachDisplay;
+    document.getElementById('voyageForm').style.display = attachDisplay;
   }
 
   // ── Timeline ──
@@ -187,7 +203,7 @@
           '<th>Type</th><th>Title</th><th>Issued</th><th>Expires</th><th>Status</th><th></th>' +
           '</tr></thead><tbody>' +
           certs.map(function (cert) {
-            var removable = application.editable && cert.added_by === null;
+            var removable = application.attachments_editable && cert.added_by === null;
             return '<tr>' +
               '<td class="text-sm">' + esc(cert.cert_type) + '</td>' +
               '<td>' + esc(cert.title) + '</td>' +
@@ -234,7 +250,7 @@
           '<th>Vessel</th><th>Employer</th><th>Rank</th><th>Signed On</th><th>Signed Off</th><th>Days</th><th></th>' +
           '</tr></thead><tbody>' +
           voyages.map(function (voyage) {
-            var removable = application.editable && voyage.added_by === null;
+            var removable = application.attachments_editable && voyage.added_by === null;
             return '<tr>' +
               '<td><strong>' + esc(voyage.vessel_name) + '</strong>' +
                 (voyage.vessel_type ? ' <span class="muted">(' + esc(voyage.vessel_type) + ')</span>' : '') + '</td>' +
@@ -283,15 +299,16 @@
           return;
         }
         container.innerHTML = '<div class="table-container"><table><thead><tr>' +
-          '<th>Type</th><th>File</th><th>Size</th><th>Uploaded</th><th></th>' +
+          '<th>Type</th><th>File</th><th>Size</th><th>Uploaded</th><th>Verification</th><th></th>' +
           '</tr></thead><tbody>' +
           docs.map(function (doc) {
-            var removable = application.editable && doc.uploaded_by === null;
+            var removable = application.attachments_editable && doc.uploaded_by === null;
             return '<tr>' +
               '<td>' + esc(doc.doc_type) + '</td>' +
               '<td>' + esc(doc.original_name) + '</td>' +
               '<td class="text-sm">' + fmtSize(doc.size_bytes) + '</td>' +
               '<td class="text-sm">' + fmtDateShort(doc.uploaded_at) + '</td>' +
+              '<td>' + verifyBadge(doc.verify_status) + '</td>' +
               '<td>' + (removable
                 ? '<button class="text-danger-action" data-doc="' + doc.id + '">Delete</button>'
                 : '') + '</td>' +
@@ -310,12 +327,72 @@
       .catch(function (error) { console.error('Failed to load documents:', error); });
   }
 
+  // ── Claim an existing record ──
+
+  function renderClaimCard(claimable) {
+    var card = document.getElementById('claimCard');
+    if (application || !claimable || !claimable.length) {
+      card.style.display = 'none';
+      return;
+    }
+    card.style.display = '';
+    document.getElementById('claimList').innerHTML =
+      '<div class="table-container"><table><thead><tr>' +
+      '<th>Ref</th><th>Name</th><th>Rank</th><th>Status</th><th>Submitted</th><th></th>' +
+      '</tr></thead><tbody>' +
+      claimable.map(function (record) {
+        return '<tr>' +
+          '<td><strong>#' + record.id + '</strong></td>' +
+          '<td>' + esc(record.first_name + ' ' + record.surname) + '</td>' +
+          '<td class="text-sm">' + esc(record.position_rank) + '</td>' +
+          '<td>' + statusBadge(record.status) + '</td>' +
+          '<td class="text-sm">' + fmtDateShort(record.submitted_at) + '</td>' +
+          '<td><button class="btn btn-primary btn-sm" data-claim="' + record.id + '">This is me — claim it</button></td>' +
+        '</tr>';
+      }).join('') + '</tbody></table></div>';
+
+    document.querySelectorAll('button[data-claim]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var errorBox = document.getElementById('claimError');
+        errorBox.style.display = 'none';
+        portalFetch('/api/portal/claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ application_id: parseInt(button.getAttribute('data-claim'), 10) })
+        })
+          .then(function (response) {
+            return response.json().then(function (data) {
+              if (!response.ok) throw new Error(detailText(data, 'Could not claim this record'));
+              application = data.application;
+              fillForm(application);
+              ensureRankSelected();
+              document.getElementById('claimCard').style.display = 'none';
+              renderState();
+              loadDocuments();
+              loadCertifications();
+              loadVoyages();
+              loadHistory();
+              showBox('formSuccess', 'Record #' + application.id + ' is now linked to your account.');
+              window.scrollTo(0, 0);
+            });
+          })
+          .catch(function (error) {
+            errorBox.textContent = error.message || 'Could not claim this record.';
+            errorBox.style.display = '';
+          });
+      });
+    });
+  }
+
   // ── Bootstrap ──
+
+  var claimableRecords = [];
 
   portalFetch('/api/portal/me')
     .then(function (r) { return r.json(); })
     .then(function (me) {
       document.getElementById('portalUserName').textContent = me.applicant.full_name;
+      claimableRecords = me.claimable || [];
       return portalFetch('/api/portal/application');
     })
     .then(function (response) {
@@ -326,6 +403,7 @@
       application = app;
       if (application) fillForm(application);
       renderState();
+      renderClaimCard(claimableRecords);
       loadDocuments();
       loadCertifications();
       loadVoyages();

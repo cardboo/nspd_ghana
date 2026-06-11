@@ -22,9 +22,23 @@ from ..config import settings
 from ..models import Applicant, Application
 from . import email_service
 
+# The application FORM is locked once review starts and stays locked
+# after a decision (the record a reviewer approved must not shift).
 EDITABLE_STATUSES = ("Pending", "Rejected")
 
+# Documents, certifications, and voyages are the seafarer's living file:
+# they stay updatable after approval (certificate renewals, new sea
+# service) and are frozen only while a reviewer is actively deciding.
+ATTACHMENT_STATUSES = ("Pending", "Rejected", "Approved")
+
 MAX_PORTAL_DOCUMENTS = 10
+
+
+def attachments_locked_detail(status: str) -> str:
+    return (
+        f"Your application is {status} and records cannot be changed "
+        "while it is being reviewed."
+    )
 
 
 def serialize_applicant(applicant: Applicant) -> dict:
@@ -62,6 +76,7 @@ def serialize_portal_application(app: Application) -> dict:
         "status": app.status,
         "submitted_at": app.submitted_at.isoformat() if app.submitted_at else None,
         "editable": app.status in EDITABLE_STATUSES,
+        "attachments_editable": app.status in ATTACHMENT_STATUSES,
     }
 
 
@@ -131,6 +146,61 @@ def get_my_application(db: Session, applicant_id: int):
         .order_by(Application.id.desc())
         .first()
     )
+
+
+# ──────────────────────────────────────────────
+# Legacy record claiming
+# ──────────────────────────────────────────────
+
+def serialize_claimable(app: Application) -> dict:
+    """Safe summary of an unclaimed record matching the account's own email."""
+    return {
+        "id": app.id,
+        "surname": app.surname,
+        "first_name": app.first_name,
+        "position_rank": app.position_rank,
+        "status": app.status,
+        "submitted_at": app.submitted_at.isoformat() if app.submitted_at else None,
+    }
+
+
+def list_claimable(db: Session, applicant: Applicant) -> list:
+    """Unclaimed legacy applications whose email matches the verified account email."""
+    if not applicant.email_verified:
+        return []
+    rows = (
+        db.query(Application)
+        .filter(
+            Application.email == applicant.email,
+            Application.applicant_id.is_(None),
+        )
+        .order_by(Application.submitted_at.desc())
+        .all()
+    )
+    return [serialize_claimable(a) for a in rows]
+
+
+def claim_application(db: Session, applicant: Applicant, application_id: int) -> Application:
+    """Link an unclaimed legacy application to the account that owns its email."""
+    if get_my_application(db, applicant.id) is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Your account is already linked to an application.",
+        )
+
+    app = db.get(Application, application_id)
+    if (
+        app is None
+        or app.applicant_id is not None
+        or not applicant.email_verified
+        or app.email != applicant.email
+    ):
+        raise HTTPException(status_code=404, detail="This record is not available to claim")
+
+    app.applicant_id = applicant.id
+    db.commit()
+    db.refresh(app)
+    return app
 
 
 def _check_ghana_card_unique(db: Session, card_number: str, exclude_id: int = None) -> None:

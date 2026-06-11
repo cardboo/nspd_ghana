@@ -33,6 +33,18 @@
         <div class="alert alert-danger" id="formError" style="display:none"></div>
         <div class="alert-info" id="formSuccess" style="display:none"></div>
 
+        <!-- Claim an existing record -->
+        <div class="card detail-card" id="claimCard" style="display:none">
+            <h3 class="detail-section-title">We Found Your Records</h3>
+            <p class="muted">
+                These existing NSPD applications match your verified email address.
+                Claim yours to manage it from this portal — documents, certifications,
+                sea service, and status tracking — instead of submitting a new one.
+            </p>
+            <div class="alert alert-danger" id="claimError" style="display:none"></div>
+            <div id="claimList"></div>
+        </div>
+
         <!-- Application form -->
         <div class="card detail-card">
             <h3 class="detail-section-title" id="formTitle">Submit Your Application</h3>

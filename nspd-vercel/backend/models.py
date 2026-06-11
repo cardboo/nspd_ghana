@@ -168,6 +168,9 @@ class Document(Base):
     size_bytes = Column(Integer, nullable=False)
     storage_driver = Column(String(20), nullable=False)
     storage_key = Column(String(500), nullable=False)
+    verify_status = Column(String(20), nullable=False, default="Pending")
+    verified_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    verified_at = Column(TIMESTAMP, nullable=True)
     uploaded_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     uploaded_at = Column(TIMESTAMP, server_default=func.current_timestamp())
 
