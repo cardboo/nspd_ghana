@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seafarer Registry Analytics - NSPD Ghana</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-placeholder"></div>
+
+        <main class="main-content">
+            <div id="header-placeholder"></div>
+
+            <div class="content-body">
+                <div class="page-header">
+                    <h1>Seafarer Registry Analytics</h1>
+                    <p class="page-subtitle">Institutional overview of registered seafarers and compliance status</p>
+                </div>
+
+                <!-- Filter Section -->
+                <div class="card filter-card">
+                    <div class="card-header">
+                        <h3>Filters</h3>
+                    </div>
+                    <div class="card-body">
+                        <form id="filterForm" class="filter-form">
+                            <div class="filter-group">
+                                <label for="rankFilter">Rank</label>
+                                <select id="rankFilter" name="rank">
+                                    <option value="">All Ranks</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label for="courseFilter">Short Course</label>
+                                <select id="courseFilter" name="course">
+                                    <option value="">All</option>
+                                    <option value="Yes">Yes</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label for="medicalFilter">Medical Status</label>
+                                <select id="medicalFilter" name="medical">
+                                    <option value="">All</option>
+                                    <option value="Yes">Fit (Yes)</option>
+                                    <option value="No">Unfit (No)</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label for="shipTypeFilter">Ship Type</label>
+                                <select id="shipTypeFilter" name="ship_type">
+                                    <option value="">All Types</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label for="dateFromFilter">From</label>
+                                <input type="date" id="dateFromFilter" name="date_from" class="form-control">
+                            </div>
+
+                            <div class="filter-group">
+                                <label for="dateToFilter">To</label>
+                                <input type="date" id="dateToFilter" name="date_to" class="form-control">
+                            </div>
+
+                            <div class="filter-actions">
+                                <button type="submit" class="btn btn-primary">Apply Filters</button>
+                                <button type="button" id="resetBtn" class="btn btn-secondary">Reset</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- SECTION 1 - PRIMARY TREND CHART (FULL WIDTH) -->
+                <div class="reports-layout-row">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Registered Seafarers Over Time</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-canvas-wrapper chart-h-primary">
+                                <div class="chart-loading" id="trendsLoading">Loading chart data...</div>
+                                <canvas id="trendsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 2 - CORE DISTRIBUTION CHARTS (TWO-COLUMN ROW) -->
+                <div class="reports-layout-row two-col">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Seafarers by Rank</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-canvas-wrapper chart-h-core">
+                                <div class="chart-loading" id="rankLoading">Loading chart data...</div>
+                                <canvas id="rankChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Sea Experience Distribution</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-canvas-wrapper chart-h-core">
+                                <div class="chart-loading" id="experienceLoading">Loading chart data...</div>
+                                <canvas id="experienceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 3 - COMPLIANCE & READINESS CHARTS -->
+                <div class="reports-layout-row two-col">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Certification Coverage</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-canvas-wrapper chart-h-secondary">
+                                <div class="chart-loading" id="certLoading">Loading chart data...</div>
+                                <canvas id="certChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Medical Fitness Status</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-canvas-wrapper chart-h-secondary">
+                                <div class="chart-loading" id="medicalLoading">Loading chart data...</div>
+                                <canvas id="medicalChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/layout.js"></script>
+    <script src="js/reports.js"></script>
+</body>
+</html>

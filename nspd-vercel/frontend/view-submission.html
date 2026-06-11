@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Submission - NSPD Ghana</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-placeholder"></div>
+
+        <main class="main-content">
+            <div id="header-placeholder"></div>
+
+            <div class="content-body">
+                <div class="back-link">
+                    <a href="submissions.html" class="link-primary">&larr; Back to Submissions</a>
+                </div>
+
+                <div class="page-header-row">
+                    <h1>Submission Details</h1>
+                    <div class="page-actions">
+                        <a href="#" id="exportPdfLink" class="btn btn-accent" target="_blank" style="display:none">Export PDF</a>
+                    </div>
+                </div>
+
+                <!-- Review Status -->
+                <div class="card detail-card">
+                    <h3 class="detail-section-title">Review Status</h3>
+                    <div class="detail-grid" id="statusGrid"></div>
+                    <div class="status-actions" id="statusActions" style="display:none; margin-top: 12px;">
+                        <button class="btn btn-secondary btn-sm" data-status="Under Review">Mark Under Review</button>
+                        <button class="btn btn-primary btn-sm" data-status="Approved">Approve</button>
+                        <button class="btn btn-secondary btn-sm" data-status="Rejected" style="background:#ef4444;color:#fff;">Reject</button>
+                        <span class="muted" id="statusMessage"></span>
+                    </div>
+                </div>
+
+                <!-- Personal Information -->
+                <div class="card detail-card">
+                    <h3 class="detail-section-title">Personal Information</h3>
+                    <div class="detail-grid" id="personalGrid"></div>
+                </div>
+
+                <!-- Position & Qualifications -->
+                <div class="card detail-card">
+                    <h3 class="detail-section-title">Position &amp; Qualifications</h3>
+                    <div class="detail-grid" id="qualificationsGrid"></div>
+                </div>
+
+                <!-- Sea Experience -->
+                <div class="card detail-card">
+                    <h3 class="detail-section-title">Sea Experience</h3>
+                    <div class="detail-grid" id="seaGrid"></div>
+                </div>
+
+                <!-- Documents -->
+                <div class="card detail-card">
+                    <h3 class="detail-section-title">Documents</h3>
+                    <div id="documentsList" class="muted">Loading...</div>
+                    <form id="uploadForm" class="inline-form" style="display:none; margin-top: 14px;">
+                        <div class="filter-group">
+                            <label>Type</label>
+                            <select id="docType" class="form-control">
+                                <option>Certificate</option>
+                                <option>Medical Report</option>
+                                <option>Passport Photo</option>
+                                <option>ID Document</option>
+                                <option selected>Other</option>
+                            </select>
+                        </div>
+                        <div class="filter-group" style="flex:1;">
+                            <label>File (PDF, JPG, PNG, DOC — max 10 MB)</label>
+                            <input type="file" id="docFile" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+                        </div>
+                        <button type="submit" class="btn btn-accent">Upload</button>
+                        <span class="muted" id="uploadMessage"></span>
+                    </form>
+                </div>
+
+                <!-- Review Comments -->
+                <div class="card detail-card">
+                    <h3 class="detail-section-title">Review Comments</h3>
+                    <div id="commentsList" class="muted">Loading...</div>
+                    <form id="commentForm" style="display:none; margin-top: 14px;">
+                        <div class="form-group">
+                            <textarea id="commentText" class="form-control" rows="3" maxlength="2000"
+                                placeholder="Add an internal note for other reviewers..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm">Add Comment</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="js/api.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/layout.js"></script>
+    <script src="js/view-submission.js"></script>
+</body>
+</html>

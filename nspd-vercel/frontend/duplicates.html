@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Quality - NSPD Ghana</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-placeholder"></div>
+
+        <main class="main-content">
+            <div id="header-placeholder"></div>
+
+            <div class="content-body">
+                <div class="page-header">
+                    <h1>Data Quality — Duplicate Submissions</h1>
+                    <p class="page-subtitle">
+                        Applications sharing the same email address or telephone number.
+                        Review each group and keep the most recent or most complete record.
+                    </p>
+                </div>
+
+                <div class="card-grid" style="margin-bottom: 16px;">
+                    <div class="card">
+                        <div class="card-title">Duplicate Email Groups</div>
+                        <div class="card-value" id="emailGroupCount">&mdash;</div>
+                        <div class="card-subtitle">distinct addresses used more than once</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Duplicate Phone Groups</div>
+                        <div class="card-value" id="phoneGroupCount">&mdash;</div>
+                        <div class="card-subtitle">distinct numbers used more than once</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header-row">
+                        <h3 class="card-title" style="margin: 0;">By Email Address</h3>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Rank</th>
+                                    <th>Status</th>
+                                    <th>Submitted</th>
+                                    <th class="text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="emailBody">
+                                <tr><td colspan="5" class="table-empty">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 16px;">
+                    <div class="card-header-row">
+                        <h3 class="card-title" style="margin: 0;">By Telephone Number</h3>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Rank</th>
+                                    <th>Status</th>
+                                    <th>Submitted</th>
+                                    <th class="text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="phoneBody">
+                                <tr><td colspan="5" class="table-empty">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="js/api.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/layout.js"></script>
+    <script src="js/duplicates.js"></script>
+</body>
+</html>

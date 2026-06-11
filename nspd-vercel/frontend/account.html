@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Account - NSPD Ghana</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-placeholder"></div>
+
+        <main class="main-content">
+            <div id="header-placeholder"></div>
+
+            <div class="content-body">
+                <div class="alert alert-danger" id="forcedNotice" style="display:none">
+                    You must change your password before you can continue using the dashboard.
+                </div>
+
+                <!-- Profile -->
+                <div class="card detail-card">
+                    <h3 class="detail-section-title">Profile</h3>
+                    <div class="detail-grid" id="profileGrid"><span class="muted">Loading...</span></div>
+                </div>
+
+                <!-- Change Password -->
+                <div class="card detail-card">
+                    <h3 class="detail-section-title">Change Password</h3>
+                    <div class="alert alert-danger" id="passwordError" style="display:none"></div>
+                    <div class="alert-info" id="passwordSuccess" style="display:none"></div>
+                    <form id="passwordForm" style="max-width: 420px;">
+                        <div class="form-group">
+                            <label for="currentPassword">Current Password</label>
+                            <input type="password" id="currentPassword" class="form-control" required autocomplete="current-password">
+                        </div>
+                        <div class="form-group">
+                            <label for="newPassword">New Password (min 8 characters)</label>
+                            <input type="password" id="newPassword" class="form-control" minlength="8" required autocomplete="new-password">
+                        </div>
+                        <div class="form-group">
+                            <label for="confirmPassword">Confirm New Password</label>
+                            <input type="password" id="confirmPassword" class="form-control" minlength="8" required autocomplete="new-password">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Change Password</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="js/api.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/layout.js"></script>
+    <script src="js/account.js"></script>
+</body>
+</html>

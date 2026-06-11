@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - NSPD Ghana</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-placeholder"></div>
+
+        <main class="main-content">
+            <div id="header-placeholder"></div>
+
+            <div class="content-body">
+                <div class="card-grid">
+                    <div class="card">
+                        <div class="card-title">Total Submissions</div>
+                        <div class="card-value" id="statTotal">&mdash;</div>
+                        <div class="card-subtitle success">Live from database</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Average Sea Exp.</div>
+                        <div class="card-value" id="statAvg">&mdash;</div>
+                        <div class="card-subtitle">Based on candidates</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Most Common Rank</div>
+                        <div class="card-value" id="statRank">&mdash;</div>
+                        <div class="card-subtitle primary">Most frequent application</div>
+                    </div>
+                    <div class="card card-accent">
+                        <div class="card-title">Recent (24h)</div>
+                        <div class="card-value" id="statRecent">&mdash;</div>
+                        <div class="card-subtitle">New applications</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Pending Review</div>
+                        <div class="card-value" id="statPending">&mdash;</div>
+                        <div class="card-subtitle warning">Awaiting a decision</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header-row">
+                        <h3 class="card-title" style="margin: 0;">Recent Submissions</h3>
+                        <a href="submissions.html" class="link-primary">View All &rarr;</a>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Rank</th>
+                                    <th>Sea Exp.</th>
+                                    <th>Status</th>
+                                    <th>Submission Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentBody">
+                                <tr>
+                                    <td colspan="5" class="table-empty">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="js/api.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/layout.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>

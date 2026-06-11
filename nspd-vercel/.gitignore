@@ -1,0 +1,14 @@
+# Environment / secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Vercel
+.vercel
+
+# Local document storage (dev only; production uses Vercel Blob)
+uploads/

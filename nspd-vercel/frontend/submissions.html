@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submissions - NSPD Ghana</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-container">
+    <div id="sidebar-placeholder"></div>
+
+    <main class="main-content">
+        <div id="header-placeholder"></div>
+
+        <div class="content-body">
+            <div class="page-header-row">
+                <h1>Submissions</h1>
+                <a href="#" id="exportCsvLink" class="btn btn-accent" target="_blank" style="display:none">Export CSV</a>
+            </div>
+
+            <!-- Filters -->
+            <div class="card filter-card">
+                <form method="GET" action="submissions.html" class="filter-form">
+                    <div class="filter-group">
+                        <label>Search</label>
+                        <input type="text" name="search" placeholder="Name, email..." class="form-control">
+                    </div>
+                    <div class="filter-group" style="flex: 0 0 200px;">
+                        <label>Rank</label>
+                        <select name="rank" id="rankSelect" class="form-control">
+                            <option value="">All Ranks</option>
+                        </select>
+                    </div>
+                    <div class="filter-group" style="flex: 0 0 170px;">
+                        <label>Status</label>
+                        <select name="status" id="statusSelect" class="form-control">
+                            <option value="">All Statuses</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Under Review">Under Review</option>
+                            <option value="Approved">Approved</option>
+                            <option value="Rejected">Rejected</option>
+                        </select>
+                    </div>
+                    <input type="hidden" name="sort" id="sortInput">
+                    <input type="hidden" name="dir" id="dirInput">
+                    <div class="filter-actions">
+                        <button type="submit" class="btn btn-primary">Filter</button>
+                        <a href="submissions.html" id="clearLink" class="btn btn-secondary" style="display:none">Clear</a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Results Info -->
+            <div class="results-info" id="resultsInfo"></div>
+
+            <!-- Table -->
+            <div class="card">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr id="submissionsHead">
+                                <th data-sort="name">Name</th>
+                                <th data-sort="rank">Rank</th>
+                                <th data-sort="email">Email</th>
+                                <th>Courses</th>
+                                <th>Medicals</th>
+                                <th data-sort="status">Status</th>
+                                <th data-sort="date">Date</th>
+                                <th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="submissionsBody">
+                            <tr>
+                                <td colspan="8" class="table-empty">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div class="pagination" id="pagination" style="display:none"></div>
+        </div>
+    </main>
+</div>
+<script src="js/api.js"></script>
+<script src="js/sidebar.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/submissions.js"></script>
+</body>
+</html>

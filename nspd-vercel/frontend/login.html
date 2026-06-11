@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - NSPD Ghana Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="login-body">
+    <div class="login-card">
+        <div class="login-header">
+            <h1 class="sidebar-logo">NSPD GHANA</h1>
+            <p style="color: var(--text-muted)">Seafarer Training &amp; Registration Portal</p>
+        </div>
+        <div class="alert alert-danger" id="loginError" style="display:none"></div>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" class="form-control" placeholder="Enter your username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" class="form-control" placeholder="Enter your password" required>
+            </div>
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+            </div>
+        </form>
+        <div class="auth-links">
+            Are you a seafarer? <a href="portal-login.html" class="link-primary">Apply or track your application</a>
+        </div>
+    </div>
+    <script src="js/login.js"></script>
+</body>
+</html>

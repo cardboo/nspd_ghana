@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Application - NSPD Ghana</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="portal-topbar">
+        <div class="portal-brand">NSPD GHANA<small>Seafarer Portal</small></div>
+        <div class="portal-user">
+            <span id="portalUserName"></span>
+            <a href="#" id="portalLogout" class="btn btn-accent btn-sm">Logout</a>
+        </div>
+    </header>
+
+    <main class="portal-main">
+        <div class="portal-banner" id="statusBanner" style="display:none">
+            <div>
+                <strong>Application <span id="bannerRef"></span></strong>
+                <span class="muted" id="bannerSubmitted"></span>
+            </div>
+            <div id="bannerStatus"></div>
+        </div>
+
+        <div class="alert-info" id="lockNotice" style="display:none"></div>
+        <div class="alert alert-danger" id="formError" style="display:none"></div>
+        <div class="alert-info" id="formSuccess" style="display:none"></div>
+
+        <!-- Application form -->
+        <div class="card detail-card">
+            <h3 class="detail-section-title" id="formTitle">Submit Your Application</h3>
+            <form id="applicationForm">
+                <div class="portal-form-grid">
+                    <div class="form-group">
+                        <label for="surname">Surname *</label>
+                        <input type="text" id="surname" class="form-control" required maxlength="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="firstName">First Name *</label>
+                        <input type="text" id="firstName" class="form-control" required maxlength="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="otherNames">Other Names</label>
+                        <input type="text" id="otherNames" class="form-control" maxlength="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="telephone">Telephone *</label>
+                        <input type="text" id="telephone" class="form-control" required maxlength="100" placeholder="(+233)XXXXXXXXX">
+                    </div>
+                    <div class="form-group">
+                        <label for="positionRank">Position / Rank *</label>
+                        <select id="positionRank" class="form-control" required>
+                            <option value="">Select rank...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="lastShipType">Last Ship Type</label>
+                        <input type="text" id="lastShipType" class="form-control" maxlength="150" placeholder="e.g. CONTAINER, TUG, OFFSHORE">
+                    </div>
+                    <div class="form-group">
+                        <label for="shortCourses">Short Courses (RMU) *</label>
+                        <select id="shortCourses" class="form-control"><option>No</option><option>Yes</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="isps">Familiarisation ISPS/GMA *</label>
+                        <select id="isps" class="form-control"><option>No</option><option>Yes</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="attachment">Attachment Completed</label>
+                        <select id="attachment" class="form-control"><option>No</option><option>Yes</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="medicals">Valid Medicals</label>
+                        <select id="medicals" class="form-control"><option>No</option><option>Yes</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="seaExperience">Sea Experience</label>
+                        <select id="seaExperience" class="form-control"><option>No</option><option>Yes</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="totalYears">Total Sea Experience (Years)</label>
+                        <input type="number" id="totalYears" class="form-control" min="0" max="999.9" step="0.1" value="0">
+                    </div>
+                </div>
+                <div style="margin-top: 10px;">
+                    <button type="submit" class="btn btn-primary" id="saveButton">Submit Application</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Documents -->
+        <div class="card detail-card" id="documentsCard" style="display:none">
+            <h3 class="detail-section-title">My Documents</h3>
+            <p class="muted">Upload your certificates, medical report, and passport photo (PDF, JPG, PNG, DOC — max 10 MB each).</p>
+            <div id="documentsList" class="muted">Loading...</div>
+            <form id="uploadForm" class="inline-form" style="margin-top: 14px;">
+                <div class="filter-group">
+                    <label>Type</label>
+                    <select id="docType" class="form-control">
+                        <option>Certificate</option>
+                        <option>Medical Report</option>
+                        <option>Passport Photo</option>
+                        <option>ID Document</option>
+                        <option>Other</option>
+                    </select>
+                </div>
+                <div class="filter-group" style="flex:1;">
+                    <label>File</label>
+                    <input type="file" id="docFile" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+                </div>
+                <button type="submit" class="btn btn-accent">Upload</button>
+                <span class="muted" id="uploadMessage"></span>
+            </form>
+        </div>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script src="js/portal.js"></script>
+</body>
+</html>

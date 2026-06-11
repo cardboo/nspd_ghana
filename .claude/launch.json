@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "nspd-vercel",
+      "runtimeExecutable": "C:\\wamp642\\www\\NSPD\\nspd-vercel\\.venv\\Scripts\\python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "backend.main:app", "--port", "8123"],
+      "cwd": "C:\\wamp642\\www\\NSPD\\nspd-vercel",
+      "port": 8123
+    }
+  ]
+}

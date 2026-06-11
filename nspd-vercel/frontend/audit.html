@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit Log - NSPD Ghana</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-placeholder"></div>
+
+        <main class="main-content">
+            <div id="header-placeholder"></div>
+
+            <div class="content-body">
+                <div class="page-header-row">
+                    <h1>Audit Log</h1>
+                </div>
+
+                <!-- Filters -->
+                <div class="card filter-card">
+                    <form method="GET" action="audit.html" class="filter-form">
+                        <div class="filter-group" style="flex: 0 0 220px;">
+                            <label>Action</label>
+                            <select name="action" id="actionSelect" class="form-control">
+                                <option value="">All Actions</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Username</label>
+                            <input type="text" name="username" class="form-control" placeholder="Filter by user...">
+                        </div>
+                        <div class="filter-actions">
+                            <button type="submit" class="btn btn-primary">Filter</button>
+                            <a href="audit.html" class="btn btn-secondary">Clear</a>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="results-info" id="resultsInfo"></div>
+
+                <div class="card">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>User</th>
+                                    <th>Action</th>
+                                    <th>Entity</th>
+                                    <th>Details</th>
+                                    <th>IP</th>
+                                </tr>
+                            </thead>
+                            <tbody id="auditBody">
+                                <tr><td colspan="6" class="table-empty">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="pagination" id="pagination" style="display:none"></div>
+            </div>
+        </main>
+    </div>
+    <script src="js/api.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/layout.js"></script>
+    <script src="js/audit.js"></script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - NSPD Ghana</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-placeholder"></div>
+
+        <main class="main-content">
+            <div id="header-placeholder"></div>
+
+            <div class="content-body">
+                <div class="page-header-row">
+                    <h1>User Management</h1>
+                </div>
+
+                <!-- Create user -->
+                <div class="card filter-card">
+                    <h3 class="detail-section-title">Add User</h3>
+                    <div class="alert alert-danger" id="createError" style="display:none"></div>
+                    <div class="alert-info" id="createSuccess" style="display:none"></div>
+                    <form id="createForm" class="inline-form">
+                        <div class="filter-group">
+                            <label>Username</label>
+                            <input type="text" id="newUsername" class="form-control" required minlength="3" maxlength="50" pattern="[A-Za-z0-9._-]+">
+                        </div>
+                        <div class="filter-group">
+                            <label>Full Name</label>
+                            <input type="text" id="newFullName" class="form-control" required maxlength="100">
+                        </div>
+                        <div class="filter-group">
+                            <label>Email</label>
+                            <input type="email" id="newEmail" class="form-control" required maxlength="150">
+                        </div>
+                        <div class="filter-group">
+                            <label>Role</label>
+                            <select id="newRole" class="form-control">
+                                <option>Viewer</option>
+                                <option>Reviewer</option>
+                                <option>Administrator</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Temporary Password</label>
+                            <input type="text" id="newPassword" class="form-control" required minlength="8" maxlength="100">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Create User</button>
+                    </form>
+                    <p class="muted" style="margin-top:8px;">
+                        New users must change the temporary password at first login.
+                    </p>
+                </div>
+
+                <!-- Users table -->
+                <div class="card">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Full Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Active</th>
+                                    <th>Last Login</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersBody">
+                                <tr><td colspan="7" class="table-empty">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="js/api.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/layout.js"></script>
+    <script src="js/users.js"></script>
+</body>
+</html>
