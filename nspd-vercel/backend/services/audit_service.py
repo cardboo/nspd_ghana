@@ -38,6 +38,11 @@ PORTAL_LOGIN_LOCKED = "portal_login_locked"
 APPLICATION_SUBMITTED = "application_submitted"
 APPLICATION_UPDATED = "application_updated"
 APPLICATION_RESUBMITTED = "application_resubmitted"
+PASSWORD_RESET_REQUESTED = "password_reset_requested"
+PASSWORD_RESET_COMPLETED = "password_reset_completed"
+VERIFICATION_RESENT = "verification_resent"
+APPLICANT_UPDATED = "applicant_updated"
+UNVERIFIED_CLEANUP = "unverified_cleanup"
 
 
 def log(

@@ -72,3 +72,33 @@ def record_success(db: Session, identity: str, ip: str) -> None:
 def portal_identity(email: str) -> str:
     """Identity key for applicant logins (fits the 50-char username column)."""
     return ("portal:" + email)[:50]
+
+
+# ──────────────────────────────────────────────
+# Generic per-IP rate limiting for public endpoints
+# (registration, forgot-password, resend-verification)
+# ──────────────────────────────────────────────
+
+def is_rate_limited(db: Session, identity: str, limit: int) -> bool:
+    """True when `identity` has `limit` or more recorded events in the window."""
+    events = (
+        db.query(func.count(LoginAttempt.id))
+        .filter(
+            LoginAttempt.username == identity,
+            LoginAttempt.attempted_at >= _window_clause(),
+        )
+        .scalar()
+        or 0
+    )
+    return events >= limit
+
+
+def record_event(db: Session, identity: str, ip: str) -> None:
+    """Count an event against a rate-limit identity (stored as a failure row)."""
+    db.add(LoginAttempt(username=identity, ip_address=ip or None, success=False))
+    db.commit()
+
+
+def ip_identity(prefix: str, ip: str) -> str:
+    """Identity key for per-IP limits on public endpoints, e.g. 'register:1.2.3.4'."""
+    return (prefix + ":" + (ip or "unknown"))[:50]

@@ -101,6 +101,115 @@
       });
   }
 
+  // ── Seafarer (portal) accounts ──
+
+  var applicantPage = 1;
+
+  function renderApplicants(data) {
+    var tbody = document.getElementById('applicantsBody');
+    document.getElementById('applicantsInfo').textContent =
+      'Showing ' + data.items.length + ' of ' + data.total + ' accounts';
+
+    if (!data.items.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="table-empty">No seafarer accounts found</td></tr>';
+    } else {
+      tbody.innerHTML = data.items.map(function (a) {
+        var verified = a.email_verified
+          ? '<span class="badge badge-success">&#10003;</span>'
+          : '<span class="badge badge-danger">&#10007;</span>';
+        var application = a.application_id
+          ? '<a class="link-primary" href="view-submission.html?id=' + a.application_id + '">#' +
+            a.application_id + '</a> ' + statusBadge(a.application_status)
+          : '<span class="muted">None</span>';
+        return '<tr>' +
+          '<td class="text-sm">' + esc(a.email) + '</td>' +
+          '<td>' + esc(a.full_name) + '</td>' +
+          '<td class="text-center">' + verified + '</td>' +
+          '<td>' + application + '</td>' +
+          '<td class="text-center"><input type="checkbox" data-applicant-active="' + a.id + '"' +
+            (a.is_active ? ' checked' : '') + '></td>' +
+          '<td class="text-sm">' + (a.last_login ? fmtDateLong(a.last_login) : 'Never') + '</td>' +
+          '<td class="text-center" style="white-space:nowrap;">' +
+            '<button class="btn btn-primary btn-sm" data-applicant-save="' + a.id + '">Save</button>' +
+            (!a.email_verified
+              ? ' <button class="btn btn-secondary btn-sm" data-applicant-resend="' + a.id + '">Resend Verification</button>'
+              : '') +
+          '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    tbody.querySelectorAll('button[data-applicant-save]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var id = button.getAttribute('data-applicant-save');
+        var isActive = tbody.querySelector('input[data-applicant-active="' + id + '"]').checked;
+        API.fetch('/api/applicants/' + id, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_active: isActive })
+        })
+          .then(function (response) {
+            return response.json().then(function (data) {
+              if (!response.ok) throw new Error(data.detail || 'Update failed');
+              show('createSuccess', 'Seafarer account updated.');
+              loadApplicants();
+            });
+          })
+          .catch(function (error) { show('createError', error.message || 'Update failed.'); });
+      });
+    });
+
+    tbody.querySelectorAll('button[data-applicant-resend]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        API.fetch('/api/applicants/' + button.getAttribute('data-applicant-resend') + '/resend-verification', {
+          method: 'POST'
+        })
+          .then(function (response) {
+            return response.json().then(function (data) {
+              if (!response.ok) throw new Error(data.detail || 'Resend failed');
+              show('createSuccess', data.message || 'Verification email sent.');
+            });
+          })
+          .catch(function (error) { show('createError', error.message || 'Resend failed.'); });
+      });
+    });
+
+    // Pagination
+    var container = document.getElementById('applicantsPagination');
+    if (data.total_pages <= 1) {
+      container.style.display = 'none';
+    } else {
+      var html = '';
+      if (data.page > 1) {
+        html += '<a href="#" class="pagination-link" data-applicant-page="' + (data.page - 1) + '">Prev</a>';
+      }
+      html += '<span class="pagination-link active">' + data.page + ' / ' + data.total_pages + '</span>';
+      if (data.page < data.total_pages) {
+        html += '<a href="#" class="pagination-link" data-applicant-page="' + (data.page + 1) + '">Next</a>';
+      }
+      container.innerHTML = html;
+      container.style.display = '';
+      container.querySelectorAll('a[data-applicant-page]').forEach(function (link) {
+        link.addEventListener('click', function (e) {
+          e.preventDefault();
+          applicantPage = parseInt(link.getAttribute('data-applicant-page'), 10);
+          loadApplicants();
+        });
+      });
+    }
+  }
+
+  function loadApplicants() {
+    var search = document.getElementById('applicantSearch').value.trim();
+    API.json('/api/applicants?' + new URLSearchParams({ page: applicantPage, search: search }))
+      .then(renderApplicants)
+      .catch(function (error) {
+        console.error('Failed to load applicants:', error);
+        document.getElementById('applicantsBody').innerHTML =
+          '<tr><td colspan="7" class="table-empty">Failed to load seafarer accounts</td></tr>';
+      });
+  }
+
   initLayout('users', 'User Management').then(function (user) {
     if (!user) return;
     if (user.role !== 'Administrator') {
@@ -109,6 +218,13 @@
     }
     currentUser = user;
     loadUsers();
+    loadApplicants();
+
+    document.getElementById('applicantSearchForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      applicantPage = 1;
+      loadApplicants();
+    });
 
     document.getElementById('createForm').addEventListener('submit', function (e) {
       e.preventDefault();

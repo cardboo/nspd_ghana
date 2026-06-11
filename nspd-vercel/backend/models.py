@@ -40,6 +40,8 @@ class User(Base):
     email = Column(String(150), nullable=False, unique=True)
     is_active = Column(Boolean, nullable=False, default=True)
     must_change_password = Column(Boolean, nullable=False, default=False)
+    reset_token = Column(String(64), nullable=True)
+    reset_token_expires = Column(TIMESTAMP, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     last_login = Column(TIMESTAMP, nullable=True)
 
@@ -83,7 +85,10 @@ class Applicant(Base):
     password_hash = Column(String(255), nullable=False)
     full_name = Column(String(150), nullable=False)
     email_verified = Column(Boolean, nullable=False, default=False)
+    is_active = Column(Boolean, nullable=False, default=True)
     verify_token = Column(String(64), nullable=True)
+    reset_token = Column(String(64), nullable=True)
+    reset_token_expires = Column(TIMESTAMP, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     last_login = Column(TIMESTAMP, nullable=True)
 

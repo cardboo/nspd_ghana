@@ -83,6 +83,7 @@
     loginForm.addEventListener('submit', function (e) {
       e.preventDefault();
       hideBox('loginError');
+      hideBox('resendBox');
 
       fetch('/api/portal/login', {
         method: 'POST',
@@ -96,6 +97,11 @@
         .then(function (response) {
           return response.json().catch(function () { return {}; }).then(function (data) {
             if (!response.ok) {
+              // Unverified email -> offer to resend the verification link
+              if (response.status === 403) {
+                var resendBox = document.getElementById('resendBox');
+                if (resendBox) resendBox.style.display = '';
+              }
               throw new Error(detailText(data, 'Invalid email or password'));
             }
             window.location.href = 'portal.html';
@@ -105,6 +111,29 @@
           showBox('loginError', error.message || 'Sign in failed.');
         });
     });
+
+    var resendLink = document.getElementById('resendLink');
+    if (resendLink) {
+      resendLink.addEventListener('click', function (e) {
+        e.preventDefault();
+        fetch('/api/portal/resend-verification', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: document.getElementById('email').value.trim() })
+        })
+          .then(function (response) {
+            return response.json().catch(function () { return {}; }).then(function (data) {
+              hideBox('loginError');
+              document.getElementById('resendBox').textContent =
+                data.message || 'If the account exists, a new verification link has been sent.';
+            });
+          })
+          .catch(function () {
+            showBox('loginError', 'Could not resend the verification email.');
+          });
+      });
+    }
   }
 
   // ── Verify page ──

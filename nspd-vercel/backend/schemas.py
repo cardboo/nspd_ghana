@@ -75,6 +75,24 @@ class PortalLoginRequest(BaseModel):
     password: str = Field(..., min_length=1, max_length=255)
 
 
+class ForgotPasswordRequest(BaseModel):
+    # Staff may enter a username or an email; applicants always use email
+    identifier: str = Field(..., min_length=1, max_length=150)
+
+
+class CompleteResetRequest(BaseModel):
+    token: str = Field(..., min_length=32, max_length=64)
+    new_password: str = Field(..., min_length=8, max_length=255)
+
+
+class ResendVerificationRequest(BaseModel):
+    email: str = Field(..., max_length=150, pattern=EMAIL_PATTERN)
+
+
+class ApplicantUpdateRequest(BaseModel):
+    is_active: bool
+
+
 class ApplicationForm(BaseModel):
     """Fields a seafarer fills in — mirrors the applications table columns.
 

@@ -40,15 +40,42 @@ from ..auth import (
 from ..config import settings
 from ..database import get_db
 from ..models import Applicant, Document
-from ..schemas import ApplicationForm, PortalLoginRequest, PortalRegisterRequest
+from ..schemas import (
+    ApplicationForm,
+    CompleteResetRequest,
+    ForgotPasswordRequest,
+    PortalLoginRequest,
+    PortalRegisterRequest,
+    ResendVerificationRequest,
+)
 from ..services import (
     application_service,
     audit_service,
     document_service,
     portal_service,
+    recovery_service,
     storage_service,
     throttle_service,
 )
+
+GENERIC_RESET_MESSAGE = (
+    "If an account with that email exists, a password reset link has been sent."
+)
+GENERIC_VERIFY_MESSAGE = (
+    "If an unverified account with that email exists, a new verification link has been sent."
+)
+
+
+def _rate_limit_public(db: Session, request: Request, prefix: str) -> str:
+    """Per-IP throttle for unauthenticated portal endpoints; returns the IP."""
+    from ..config import settings as cfg
+
+    ip = get_client_ip(request)
+    identity = throttle_service.ip_identity(prefix, ip)
+    if throttle_service.is_rate_limited(db, identity, cfg.lockout_max_attempts):
+        raise HTTPException(status_code=429, detail="Too many requests. Please try again later.")
+    throttle_service.record_event(db, identity, ip)
+    return ip
 
 router = APIRouter(prefix="/api/portal", tags=["Applicant Portal"])
 
@@ -77,6 +104,7 @@ def register(
     request: Request,
     db: Session = Depends(get_db),
 ):
+    _rate_limit_public(db, request, "register")
     applicant = portal_service.register(db, body, _base_url(request))
     audit_service.log(
         db,
@@ -135,6 +163,12 @@ def login(
         audit_service.log(db, audit_service.PORTAL_LOGIN_FAILED, username=identity, ip=ip)
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
+    if not applicant.is_active:
+        raise HTTPException(
+            status_code=401,
+            detail="This account has been deactivated. Contact the Ghana Maritime Authority.",
+        )
+
     if not applicant.email_verified:
         raise HTTPException(
             status_code=403,
@@ -162,6 +196,64 @@ def login(
 def logout(response: Response):
     clear_portal_cookie(response)
     return {"message": "Logged out successfully"}
+
+
+@router.post("/forgot-password")
+def forgot_password(
+    body: ForgotPasswordRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    ip = _rate_limit_public(db, request, "pwreset")
+    applicant = recovery_service.issue_portal_reset(db, body.identifier.strip(), _base_url(request))
+    if applicant is not None:
+        audit_service.log(
+            db,
+            audit_service.PASSWORD_RESET_REQUESTED,
+            username=throttle_service.portal_identity(applicant.email),
+            entity="applicant",
+            entity_id=applicant.id,
+            ip=ip,
+        )
+    return {"message": GENERIC_RESET_MESSAGE}
+
+
+@router.post("/reset-password")
+def reset_password(
+    body: CompleteResetRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    applicant = recovery_service.complete_portal_reset(db, body.token.strip(), body.new_password)
+    audit_service.log(
+        db,
+        audit_service.PASSWORD_RESET_COMPLETED,
+        username=throttle_service.portal_identity(applicant.email),
+        entity="applicant",
+        entity_id=applicant.id,
+        ip=get_client_ip(request),
+    )
+    return {"message": "Password reset successfully. You can now sign in."}
+
+
+@router.post("/resend-verification")
+def resend_verification(
+    body: ResendVerificationRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    ip = _rate_limit_public(db, request, "verify")
+    applicant = recovery_service.resend_verification(db, body.email.strip(), _base_url(request))
+    if applicant is not None:
+        audit_service.log(
+            db,
+            audit_service.VERIFICATION_RESENT,
+            username=throttle_service.portal_identity(applicant.email),
+            entity="applicant",
+            entity_id=applicant.id,
+            ip=ip,
+        )
+    return {"message": GENERIC_VERIFY_MESSAGE}
 
 
 @router.get("/me")

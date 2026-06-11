@@ -16,9 +16,11 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from .routers import (
     account,
+    applicants_admin,
     applications,
     audit,
     auth_routes,
+    cron,
     dashboard,
     documents,
     exports,
@@ -45,6 +47,8 @@ app.include_router(exports.router)
 app.include_router(users.router)
 app.include_router(audit.router)
 app.include_router(portal.router)
+app.include_router(applicants_admin.router)
+app.include_router(cron.router)
 
 
 @app.exception_handler(SQLAlchemyError)

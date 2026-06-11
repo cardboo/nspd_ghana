@@ -29,6 +29,10 @@ Every feature is preserved: login/logout, role-based access control (Administrat
 | **Report date range** | From/To date filters on all five analytics charts |
 | **Sortable columns** | Submissions table sorts by name, rank, email, status, or date |
 | **Applicant portal** | Seafarers self-register (`portal-register.html`), verify their email, submit **one application per account**, upload their own documents, track status, edit while Pending, and resubmit after Rejection. Locked the moment review starts. Applicant auth is a fully separate realm (own table, own cookie, own JWT realm) — applicant sessions cannot touch staff endpoints and vice versa |
+| **Password recovery** | Self-service forgot-password for both staff and applicants: single-use emailed tokens (60 min expiry), no account enumeration, per-IP request throttling |
+| **Applicant administration** | Admins see all seafarer accounts on the Users page: verification state, linked application, deactivate/reactivate, resend verification emails |
+| **Scheduled cleanup** | Vercel Cron job deletes never-verified accounts after 30 days (`/api/cron/cleanup-unverified`, protected by `CRON_SECRET`) |
+| **Registration throttling** | Public endpoints (register, forgot-password, resend-verification) are rate-limited per IP |
 
 ## Project Structure
 
@@ -126,6 +130,22 @@ The submissions list also accepts `status`, `sort` (`name|rank|email|status|date
 
 Portal pages: `portal-register.html`, `portal-login.html`, `verify.html`, `portal.html` (My Application). The staff login page links to the portal and vice versa.
 
+### Account recovery & administration endpoints
+
+| Method | Endpoint                                     | Auth   | Description |
+|--------|----------------------------------------------|--------|-------------|
+| POST   | `/api/auth/forgot-password`                  | —      | Staff reset link by username or email (generic response, IP-throttled) |
+| POST   | `/api/auth/reset-password`                   | —      | Complete a staff reset with `{token, new_password}` |
+| POST   | `/api/portal/forgot-password`                | —      | Applicant reset link by email |
+| POST   | `/api/portal/reset-password`                 | —      | Complete an applicant reset (also marks the email verified) |
+| POST   | `/api/portal/resend-verification`            | —      | Re-send the verification link (generic response, IP-throttled) |
+| GET    | `/api/applicants`                            | Admin  | Paginated seafarer accounts with `search` |
+| PUT    | `/api/applicants/{id}`                       | Admin  | Activate / deactivate an applicant account |
+| POST   | `/api/applicants/{id}/resend-verification`   | Admin  | Re-send verification on behalf of an applicant |
+| GET    | `/api/cron/cleanup-unverified`               | Cron   | Delete unverified accounts older than the retention window (Bearer `CRON_SECRET`) |
+
+Recovery pages: `forgot-password.html` and `reset-password.html`, realm-selected by `?for=staff` or `?for=portal`.
+
 Errors are JSON: `{"detail": "..."}` with proper status codes (400, 401, 403, 404, 409, 422, 429, 500).
 
 ## Authentication Notes
@@ -169,6 +189,9 @@ Copy `.env.example` to `.env` locally; in production set the same variables in *
 | `STORAGE_DRIVER` | `auto` / `local` / `vercel_blob` | `auto` |
 | `BLOB_READ_WRITE_TOKEN` | Injected by Vercel when you attach a Blob store — **required for uploads on Vercel** (no persistent disk on serverless) | — |
 | `MAX_UPLOAD_MB` | Document upload size limit | `10` |
+| `RESET_TOKEN_MINUTES` | Password-reset link validity | `60` |
+| `UNVERIFIED_RETENTION_DAYS` | Never-verified accounts are deleted after this many days | `30` |
+| `CRON_SECRET` | Shared secret for Vercel Cron — set it in production so `/api/cron/*` requires `Authorization: Bearer <secret>` | random string |
 
 ## Run Locally
 

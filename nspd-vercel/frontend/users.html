@@ -76,6 +76,44 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- Seafarer (portal) accounts -->
+                <div class="page-header-row" style="margin-top: 28px;">
+                    <h1>Seafarer Accounts</h1>
+                </div>
+                <div class="card filter-card">
+                    <form id="applicantSearchForm" class="filter-form">
+                        <div class="filter-group">
+                            <label>Search</label>
+                            <input type="text" id="applicantSearch" class="form-control" placeholder="Email or name...">
+                        </div>
+                        <div class="filter-actions">
+                            <button type="submit" class="btn btn-primary">Search</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="results-info" id="applicantsInfo"></div>
+                <div class="card">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th>Full Name</th>
+                                    <th>Verified</th>
+                                    <th>Application</th>
+                                    <th>Active</th>
+                                    <th>Last Login</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="applicantsBody">
+                                <tr><td colspan="7" class="table-empty">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="pagination" id="applicantsPagination" style="display:none"></div>
             </div>
         </main>
     </div>

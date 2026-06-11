@@ -13,6 +13,10 @@
             <p style="color: var(--text-muted)">Seafarer Portal — Track your application</p>
         </div>
         <div class="alert alert-danger" id="loginError" style="display:none"></div>
+        <div class="alert-info" id="resendBox" style="display:none">
+            Didn't get the verification email?
+            <a href="#" id="resendLink" class="link-primary">Send it again</a>
+        </div>
         <form id="portalLoginForm">
             <div class="form-group">
                 <label for="email">Email Address</label>
@@ -28,6 +32,7 @@
         </form>
         <div class="auth-links">
             New here? <a href="portal-register.html" class="link-primary">Create an account</a><br>
+            <a href="forgot-password.html?for=portal" class="link-primary">Forgot password?</a><br>
             <a href="login.html" class="link-primary">GMA staff login</a>
         </div>
     </div>

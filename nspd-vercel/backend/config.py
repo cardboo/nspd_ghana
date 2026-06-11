@@ -76,5 +76,12 @@ class Settings:
         self.uploads_dir: Path = Path(os.environ.get("UPLOADS_DIR", str(default_uploads)))
         self.max_upload_mb: int = int(os.environ.get("MAX_UPLOAD_MB", "10"))
 
+        # ── Account recovery & scheduled cleanup ──
+        self.reset_token_minutes: int = int(os.environ.get("RESET_TOKEN_MINUTES", "60"))
+        self.unverified_retention_days: int = int(os.environ.get("UNVERIFIED_RETENTION_DAYS", "30"))
+        # Shared secret for Vercel Cron requests (Authorization: Bearer <secret>)
+        self.cron_secret: str = os.environ.get("CRON_SECRET", "")
+        self.is_vercel: bool = bool(os.environ.get("VERCEL"))
+
 
 settings = Settings()
