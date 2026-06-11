@@ -58,6 +58,9 @@
       personal += detailItem('Other Names', esc(app.other_names));
     }
     personal += detailItem('Telephone', esc(app.telephone));
+    if (app.ghana_card_number) {
+      personal += detailItem('Ghana Card', esc(app.ghana_card_number));
+    }
     personal += detailItem('Email', esc(app.email));
     personal += detailItem('Submission Date', esc(fmtDateLong(app.submitted_at)));
     document.getElementById('personalGrid').innerHTML = personal;
@@ -110,6 +113,7 @@
           })
           .then(function (data) {
             renderStatus(data.application);
+            loadHistory();
             var note = data.notification || {};
             if (note.status === 'sent') {
               message.textContent = 'Saved. Applicant notified at ' + note.recipient + '.';
@@ -125,6 +129,95 @@
             message.textContent = 'Could not update the status.';
           });
       });
+    });
+  }
+
+  // ── Status history ──
+
+  function loadHistory() {
+    API.json('/api/applications/' + id + '/history')
+      .then(function (data) {
+        document.getElementById('historyContainer').innerHTML = timelineHTML(data.history);
+      })
+      .catch(function (error) { console.error('Failed to load history:', error); });
+  }
+
+  // ── Certifications ──
+
+  function loadCertifications() {
+    API.json('/api/applications/' + id + '/certifications')
+      .then(function (data) {
+        var certs = data.certifications || [];
+        var container = document.getElementById('certificationsList');
+        if (!certs.length) {
+          container.innerHTML = '<span class="muted">No certifications recorded yet.</span>';
+          return;
+        }
+        container.innerHTML = '<div class="table-container"><table><thead><tr>' +
+          '<th>Type</th><th>Title</th><th>Issued</th><th>Expires</th><th>Status</th><th>Issuer</th><th></th>' +
+          '</tr></thead><tbody>' +
+          certs.map(function (cert) {
+            return '<tr>' +
+              '<td class="text-sm">' + esc(cert.cert_type) + '</td>' +
+              '<td>' + esc(cert.title) + '</td>' +
+              '<td class="text-sm">' + (cert.issued_on ? fmtDateShort(cert.issued_on) : '—') + '</td>' +
+              '<td class="text-sm">' + (cert.expires_on ? fmtDateShort(cert.expires_on) : '—') + '</td>' +
+              '<td>' + certBadge(cert.status) + '</td>' +
+              '<td class="text-sm">' + esc(cert.issuer || '') + '</td>' +
+              '<td>' + (isReviewer()
+                ? '<button class="text-danger-action" data-cert="' + cert.id + '">Delete</button>'
+                : '') + '</td>' +
+            '</tr>';
+          }).join('') + '</tbody></table></div>';
+
+        container.querySelectorAll('button[data-cert]').forEach(function (button) {
+          button.addEventListener('click', function () {
+            if (!window.confirm('Delete this certification record?')) return;
+            API.fetch('/api/applications/certifications/' + button.getAttribute('data-cert'), { method: 'DELETE' })
+              .then(function () { loadCertifications(); })
+              .catch(function (error) { console.error(error); });
+          });
+        });
+      })
+      .catch(function (error) { console.error('Failed to load certifications:', error); });
+  }
+
+  function wireCertForm() {
+    if (!isReviewer()) return;
+    var form = document.getElementById('certForm');
+    form.style.display = '';
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var message = document.getElementById('certMessage');
+      var title = document.getElementById('certTitle').value.trim();
+      if (!title) { message.textContent = 'Enter a title.'; return; }
+      message.textContent = 'Saving...';
+      API.fetch('/api/applications/' + id + '/certifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cert_type: document.getElementById('certType').value,
+          title: title,
+          issued_on: document.getElementById('certIssued').value || null,
+          expires_on: document.getElementById('certExpires').value || null,
+          issuer: document.getElementById('certIssuer').value.trim() || null
+        })
+      })
+        .then(function (response) {
+          return response.json().then(function (data) {
+            if (!response.ok) {
+              var detail = data.detail;
+              if (Array.isArray(detail)) detail = detail.map(function (d) { return d.msg; }).join('; ');
+              throw new Error(detail || 'Could not add the certification');
+            }
+            message.textContent = 'Added.';
+            form.reset();
+            loadCertifications();
+          });
+        })
+        .catch(function (error) {
+          message.textContent = error.message || 'Could not add the certification.';
+        });
     });
   }
 
@@ -294,8 +387,11 @@
         wireStatusActions();
         wireUploadForm();
         wireCommentForm();
+        wireCertForm();
         loadDocuments();
         loadComments();
+        loadCertifications();
+        loadHistory();
       })
       .catch(function (error) {
         console.error('Failed to load submission:', error);

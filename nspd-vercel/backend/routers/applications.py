@@ -28,10 +28,11 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_client_ip, get_current_user, require_role
 from ..database import get_db
-from ..schemas import CommentRequest, StatusUpdateRequest
+from ..schemas import CertificationForm, CommentRequest, StatusUpdateRequest
 from ..services import (
     application_service,
     audit_service,
+    certification_service,
     document_service,
     email_service,
     storage_service,
@@ -166,6 +167,70 @@ def add_comment(
         ip=get_client_ip(request),
     )
     return {"comment": application_service.serialize_comment(comment)}
+
+
+@router.get("/{application_id}/history")
+def status_history(
+    application_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    application = _get_or_404(db, application_id)
+    return {"history": application_service.get_status_history(db, application)}
+
+
+@router.get("/{application_id}/certifications")
+def list_certifications(
+    application_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    _get_or_404(db, application_id)
+    return {"certifications": certification_service.list_for_application(db, application_id)}
+
+
+@router.post("/{application_id}/certifications", status_code=201)
+def add_certification(
+    application_id: int,
+    body: CertificationForm,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_role("Reviewer")),
+):
+    _get_or_404(db, application_id)
+    cert = certification_service.create(db, application_id, body, added_by=user["id"])
+    audit_service.log(
+        db,
+        audit_service.CERT_ADDED,
+        user=user,
+        entity="application",
+        entity_id=application_id,
+        details=f"{cert.cert_type}: {cert.title}",
+        ip=get_client_ip(request),
+    )
+    return {"certification": certification_service.serialize(cert)}
+
+
+@router.delete("/certifications/{certification_id}")
+def delete_certification(
+    certification_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_role("Reviewer")),
+):
+    cert = certification_service.get_or_404(db, certification_id)
+    application_id, title = cert.application_id, cert.title
+    certification_service.delete(db, cert)
+    audit_service.log(
+        db,
+        audit_service.CERT_DELETED,
+        user=user,
+        entity="application",
+        entity_id=application_id,
+        details=title,
+        ip=get_client_ip(request),
+    )
+    return {"message": "Certification deleted"}
 
 
 @router.get("/{application_id}/documents")

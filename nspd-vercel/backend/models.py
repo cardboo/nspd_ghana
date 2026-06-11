@@ -10,6 +10,7 @@ from sqlalchemy import (
     TIMESTAMP,
     Boolean,
     Column,
+    Date,
     DateTime,
     Enum,
     ForeignKey,
@@ -58,6 +59,7 @@ class Application(Base):
     familiarisation_isps_gma = Column(Enum("Yes", "No", name="yes_no_isps"), nullable=False)
     position_rank = Column(String(100), nullable=False)
     telephone = Column(String(100), nullable=False)
+    ghana_card_number = Column(String(30), nullable=True, unique=True)
     email = Column(String(150), nullable=False)
     attachment = Column(Text, nullable=True)
     sea_experience = Column(Text, nullable=True)
@@ -72,6 +74,25 @@ class Application(Base):
     reviewed_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     reviewed_at = Column(TIMESTAMP, nullable=True)
     applicant_id = Column(Integer, ForeignKey("applicants.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
+
+
+class Certification(Base):
+    """A certificate or medical record with real issue/expiry dates."""
+
+    __tablename__ = "certifications"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    application_id = Column(
+        Integer, ForeignKey("applications.id", ondelete="CASCADE"), nullable=False
+    )
+    cert_type = Column(String(50), nullable=False, default="Other")
+    title = Column(String(150), nullable=False)
+    issued_on = Column(Date, nullable=True)
+    expires_on = Column(Date, nullable=True)
+    issuer = Column(String(150), nullable=True)
+    added_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    last_alerted_at = Column(TIMESTAMP, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
 
 

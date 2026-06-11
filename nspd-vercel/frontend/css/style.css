@@ -872,3 +872,28 @@ tr:hover {
   border: 1px solid #e2e8f0;
 }
 .auth-links { text-align: center; margin-top: 14px; font-size: 14px; }
+
+/* ── Tier 2: certifications & timeline ── */
+.cert-expired { background: #fee2e2; color: #991b1b; }
+.cert-expiring-soon { background: #fef3c7; color: #92400e; }
+.cert-valid { background: #d1fae5; color: #065f46; }
+.cert-no-expiry { background: #e2e8f0; color: #475569; }
+
+.timeline { list-style: none; padding: 0; margin: 10px 0 0; }
+.timeline li {
+  position: relative;
+  padding: 6px 0 6px 18px;
+  border-left: 2px solid #e2e8f0;
+  font-size: 13px;
+}
+.timeline li::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: #2563eb;
+  border-radius: 50%;
+  position: absolute;
+  left: -5px;
+  top: 11px;
+}
+.timeline .timeline-date { color: #64748b; }

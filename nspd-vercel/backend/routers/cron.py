@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..database import get_db
-from ..services import audit_service, recovery_service
+from ..services import audit_service, certification_service, recovery_service
 
 router = APIRouter(prefix="/api/cron", tags=["Scheduled Jobs"])
 
@@ -45,3 +45,25 @@ def cleanup_unverified(
                     f"{settings.unverified_retention_days} days",
         )
     return {"deleted": deleted, "retention_days": settings.unverified_retention_days}
+
+
+@router.get("/expiry-alerts")
+def expiry_alerts(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Weekly: email applicants whose certificates are expired or expiring soon."""
+    _check_cron_auth(request)
+    result = certification_service.send_expiry_alerts(db)
+    if result["applicants_notified"]:
+        audit_service.log(
+            db,
+            audit_service.EXPIRY_ALERTS,
+            username="cron",
+            entity="certifications",
+            details=(
+                f"notified {result['applicants_notified']} applicants about "
+                f"{result['certificates']} certificates"
+            ),
+        )
+    return result

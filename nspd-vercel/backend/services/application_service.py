@@ -13,7 +13,8 @@ from fastapi import HTTPException
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import Session
 
-from ..models import Application, ApplicationComment, User
+from ..models import Application, ApplicationComment, AuditLog, User
+from . import certification_service
 
 PER_PAGE = 10
 
@@ -58,6 +59,7 @@ def serialize_detail(app: Application, reviewer_name: str = None) -> dict:
         "first_name": app.first_name,
         "other_names": app.other_names,
         "telephone": app.telephone,
+        "ghana_card_number": app.ghana_card_number,
         "email": app.email,
         "position_rank": app.position_rank,
         "short_courses_rmu": app.short_courses_rmu,
@@ -83,17 +85,22 @@ def get_reviewer_name(db: Session, app: Application):
 
 
 def build_search_filters(search: str, rank: str, status: str = "") -> list:
-    """WHERE clause from submissions.php / export-all-csv.php, plus status."""
+    """WHERE clause from submissions.php / export-all-csv.php, plus status,
+    Ghana Card, and reference-number matching."""
     filters = []
     if search:
         like = f"%{search}%"
-        filters.append(
-            or_(
-                Application.surname.like(like),
-                Application.first_name.like(like),
-                Application.email.like(like),
-            )
-        )
+        conditions = [
+            Application.surname.like(like),
+            Application.first_name.like(like),
+            Application.email.like(like),
+            Application.ghana_card_number.like(like),
+        ]
+        # "#575" or "575" also matches the application reference number
+        reference = search.lstrip("#").strip()
+        if reference.isdigit():
+            conditions.append(Application.id == int(reference))
+        filters.append(or_(*conditions))
     if rank:
         filters.append(Application.position_rank == rank)
     if status:
@@ -144,6 +151,7 @@ def get_dashboard_stats(db: Session) -> dict:
         "most_common_rank": most_common_rank,
         "recent_24h": int(recent_24h),
         "pending_review": status_counts.get("Pending", 0) + status_counts.get("Under Review", 0),
+        "expiring_certs": int(certification_service.count_expiring(db)),
         "status_counts": status_counts,
         "recent_submissions": [serialize_summary(a) for a in recent],
     }
@@ -225,6 +233,50 @@ def update_status(db: Session, application: Application, new_status: str, user: 
     db.commit()
     db.refresh(application)
     return application
+
+
+# ──────────────────────────────────────────────
+# Status history (from the audit trail)
+# ──────────────────────────────────────────────
+
+HISTORY_ACTIONS = ("status_changed", "application_submitted", "application_resubmitted")
+
+
+def get_status_history(db: Session, application: Application, include_usernames: bool = True) -> list:
+    """Timeline of submission and review events for one application.
+
+    Sourced from the audit log; the initial submission is synthesised from
+    submitted_at for legacy rows that predate audit logging.
+    """
+    rows = (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.entity == "application",
+            AuditLog.entity_id == application.id,
+            AuditLog.action.in_(HISTORY_ACTIONS),
+        )
+        .order_by(AuditLog.id.asc())
+        .all()
+    )
+
+    events = []
+    has_submission_event = any(r.action == "application_submitted" for r in rows)
+    if not has_submission_event:
+        events.append({
+            "action": "application_submitted",
+            "username": None,
+            "details": None,
+            "created_at": application.submitted_at.isoformat() if application.submitted_at else None,
+        })
+
+    for row in rows:
+        events.append({
+            "action": row.action,
+            "username": row.username if include_usernames else None,
+            "details": row.details,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+        })
+    return events
 
 
 # ──────────────────────────────────────────────

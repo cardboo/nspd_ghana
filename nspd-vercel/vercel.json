@@ -17,6 +17,7 @@
     { "src": "/(.*)", "dest": "/frontend/$1" }
   ],
   "crons": [
-    { "path": "/api/cron/cleanup-unverified", "schedule": "0 3 * * *" }
+    { "path": "/api/cron/cleanup-unverified", "schedule": "0 3 * * *" },
+    { "path": "/api/cron/expiry-alerts", "schedule": "0 6 * * 1" }
   ]
 }

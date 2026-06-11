@@ -23,6 +23,7 @@ function sidebarHTML(currentPage, user) {
   nav += item('submissions', 'submissions.html', '&#128196;', 'Submissions');
   nav += item('reports', 'reports.html', '&#128200;', 'Reports');
   if (role === 'Administrator' || role === 'Reviewer') {
+    nav += item('expiry', 'expiry.html', '&#9200;', 'Expiry Watch');
     nav += item('duplicates', 'duplicates.html', '&#128269;', 'Data Quality');
   }
   if (role === 'Administrator') {

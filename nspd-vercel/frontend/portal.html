@@ -24,6 +24,11 @@
             <div id="bannerStatus"></div>
         </div>
 
+        <div class="card detail-card" id="historyCard" style="display:none">
+            <h3 class="detail-section-title">Application Timeline</h3>
+            <div id="historyContainer"></div>
+        </div>
+
         <div class="alert-info" id="lockNotice" style="display:none"></div>
         <div class="alert alert-danger" id="formError" style="display:none"></div>
         <div class="alert-info" id="formSuccess" style="display:none"></div>
@@ -48,6 +53,10 @@
                     <div class="form-group">
                         <label for="telephone">Telephone *</label>
                         <input type="text" id="telephone" class="form-control" required maxlength="100" placeholder="(+233)XXXXXXXXX">
+                    </div>
+                    <div class="form-group">
+                        <label for="ghanaCard">Ghana Card Number *</label>
+                        <input type="text" id="ghanaCard" class="form-control" required minlength="5" maxlength="30" placeholder="GHA-XXXXXXXXX-X" style="text-transform:uppercase;">
                     </div>
                     <div class="form-group">
                         <label for="positionRank">Position / Rank *</label>
@@ -87,6 +96,43 @@
                 <div style="margin-top: 10px;">
                     <button type="submit" class="btn btn-primary" id="saveButton">Submit Application</button>
                 </div>
+            </form>
+        </div>
+
+        <!-- Certifications -->
+        <div class="card detail-card" id="certificationsCard" style="display:none">
+            <h3 class="detail-section-title">My Certifications &amp; Medicals</h3>
+            <p class="muted">Record your certificates with their expiry dates — we will remind you by email before they lapse.</p>
+            <div id="certificationsList" class="muted">Loading...</div>
+            <form id="certForm" class="inline-form" style="margin-top: 14px;">
+                <div class="filter-group">
+                    <label>Type</label>
+                    <select id="certType" class="form-control">
+                        <option>Medical Certificate</option>
+                        <option>STCW Certificate</option>
+                        <option>RMU Short Course</option>
+                        <option>ISPS Familiarisation</option>
+                        <option>Other</option>
+                    </select>
+                </div>
+                <div class="filter-group" style="flex:1; min-width:180px;">
+                    <label>Title</label>
+                    <input type="text" id="certTitle" class="form-control" maxlength="150" placeholder="e.g. Seafarer Medical Fitness">
+                </div>
+                <div class="filter-group">
+                    <label>Issued</label>
+                    <input type="date" id="certIssued" class="form-control">
+                </div>
+                <div class="filter-group">
+                    <label>Expires</label>
+                    <input type="date" id="certExpires" class="form-control">
+                </div>
+                <div class="filter-group">
+                    <label>Issuer</label>
+                    <input type="text" id="certIssuer" class="form-control" maxlength="150" placeholder="e.g. GMA, RMU">
+                </div>
+                <button type="submit" class="btn btn-primary">Add</button>
+                <span class="muted" id="certMessage"></span>
             </form>
         </div>
 

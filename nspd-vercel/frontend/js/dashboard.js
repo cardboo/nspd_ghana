@@ -13,6 +13,7 @@
         document.getElementById('statRank').textContent = data.most_common_rank || 'N/A';
         document.getElementById('statRecent').textContent = fmtNumber(data.recent_24h);
         document.getElementById('statPending').textContent = fmtNumber(data.pending_review);
+        document.getElementById('statExpiring').textContent = fmtNumber(data.expiring_certs);
 
         var tbody = document.getElementById('recentBody');
         var rows = data.recent_submissions || [];

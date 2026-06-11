@@ -42,6 +42,7 @@ from ..database import get_db
 from ..models import Applicant, Document
 from ..schemas import (
     ApplicationForm,
+    CertificationForm,
     CompleteResetRequest,
     ForgotPasswordRequest,
     PortalLoginRequest,
@@ -51,6 +52,7 @@ from ..schemas import (
 from ..services import (
     application_service,
     audit_service,
+    certification_service,
     document_service,
     portal_service,
     recovery_service,
@@ -333,6 +335,93 @@ def update_application(
         ip=get_client_ip(request),
     )
     return {"application": portal_service.serialize_portal_application(application)}
+
+
+@router.get("/application/history")
+def application_history(
+    claims: dict = Depends(get_current_applicant),
+    db: Session = Depends(get_db),
+):
+    application = portal_service.get_my_application(db, claims["id"])
+    if application is None:
+        raise HTTPException(status_code=404, detail="You have not submitted an application yet")
+    # Applicants see the timeline without staff usernames
+    return {
+        "history": application_service.get_status_history(db, application, include_usernames=False)
+    }
+
+
+# ──────────────────────────────────────────────
+# Certifications (own application only)
+# ──────────────────────────────────────────────
+
+@router.get("/certifications")
+def list_certifications(
+    claims: dict = Depends(get_current_applicant),
+    db: Session = Depends(get_db),
+):
+    application = _get_own_application_or_404(db, claims["id"])
+    return {"certifications": certification_service.list_for_application(db, application.id)}
+
+
+@router.post("/certifications", status_code=201)
+def add_certification(
+    body: CertificationForm,
+    request: Request,
+    claims: dict = Depends(get_current_applicant),
+    db: Session = Depends(get_db),
+):
+    application = _get_own_application_or_404(db, claims["id"])
+    if application.status not in portal_service.EDITABLE_STATUSES:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Your application is {application.status} and certifications can no longer be changed.",
+        )
+    cert = certification_service.create(db, application.id, body, added_by=None)
+    audit_service.log(
+        db,
+        audit_service.CERT_ADDED,
+        username=throttle_service.portal_identity(claims["email"]),
+        entity="application",
+        entity_id=application.id,
+        details=f"{cert.cert_type}: {cert.title}",
+        ip=get_client_ip(request),
+    )
+    return {"certification": certification_service.serialize(cert)}
+
+
+@router.delete("/certifications/{certification_id}")
+def delete_certification(
+    certification_id: int,
+    request: Request,
+    claims: dict = Depends(get_current_applicant),
+    db: Session = Depends(get_db),
+):
+    application = _get_own_application_or_404(db, claims["id"])
+    cert = certification_service.get_or_404(db, certification_id)
+
+    if cert.application_id != application.id:
+        raise HTTPException(status_code=404, detail="Certification not found")
+    if cert.added_by is not None:
+        raise HTTPException(status_code=403, detail="Records added by GMA staff cannot be removed")
+    if application.status not in portal_service.EDITABLE_STATUSES:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Your application is {application.status} and certifications can no longer be changed.",
+        )
+
+    title = cert.title
+    certification_service.delete(db, cert)
+    audit_service.log(
+        db,
+        audit_service.CERT_DELETED,
+        username=throttle_service.portal_identity(claims["email"]),
+        entity="application",
+        entity_id=application.id,
+        details=title,
+        ip=get_client_ip(request),
+    )
+    return {"message": "Certification deleted"}
 
 
 # ──────────────────────────────────────────────

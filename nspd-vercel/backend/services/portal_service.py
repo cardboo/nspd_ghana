@@ -45,6 +45,7 @@ def serialize_portal_application(app: Application) -> dict:
         "first_name": app.first_name,
         "other_names": app.other_names,
         "telephone": app.telephone,
+        "ghana_card_number": app.ghana_card_number,
         "email": app.email,
         "position_rank": app.position_rank,
         "short_courses_rmu": app.short_courses_rmu,
@@ -132,11 +133,26 @@ def get_my_application(db: Session, applicant_id: int):
     )
 
 
+def _check_ghana_card_unique(db: Session, card_number: str, exclude_id: int = None) -> None:
+    query = db.query(Application.id).filter(Application.ghana_card_number == card_number)
+    if exclude_id is not None:
+        query = query.filter(Application.id != exclude_id)
+    if query.first() is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "An application with this Ghana Card number already exists. "
+                "Contact the Ghana Maritime Authority if you believe it is yours."
+            ),
+        )
+
+
 def _apply_form(app: Application, form) -> None:
     app.surname = form.surname.strip()
     app.first_name = form.first_name.strip()
     app.other_names = (form.other_names or "").strip() or None
     app.telephone = form.telephone.strip()
+    app.ghana_card_number = form.ghana_card_number
     app.position_rank = form.position_rank.strip()
     app.short_courses_rmu = form.short_courses_rmu
     app.familiarisation_isps_gma = form.familiarisation_isps_gma
@@ -153,6 +169,7 @@ def create_application(db: Session, applicant: Applicant, form) -> Application:
             status_code=409,
             detail="You already have an application. Edit it instead of submitting a new one.",
         )
+    _check_ghana_card_unique(db, form.ghana_card_number)
 
     app = Application(
         applicant_id=applicant.id,
@@ -191,6 +208,7 @@ def update_application(db: Session, app: Application, form) -> tuple:
             status_code=403,
             detail=f"Your application is {app.status} and can no longer be edited.",
         )
+    _check_ghana_card_unique(db, form.ghana_card_number, exclude_id=app.id)
 
     resubmitted = app.status == "Rejected"
     _apply_form(app, form)

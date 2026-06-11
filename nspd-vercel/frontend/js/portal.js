@@ -52,6 +52,7 @@
     document.getElementById('firstName').value = app.first_name || '';
     document.getElementById('otherNames').value = app.other_names || '';
     document.getElementById('telephone').value = app.telephone || '';
+    document.getElementById('ghanaCard').value = app.ghana_card_number || '';
     document.getElementById('lastShipType').value = app.last_ship_type || '';
     document.getElementById('shortCourses').value = app.short_courses_rmu || 'No';
     document.getElementById('isps').value = app.familiarisation_isps_gma || 'No';
@@ -86,6 +87,7 @@
       first_name: document.getElementById('firstName').value.trim(),
       other_names: document.getElementById('otherNames').value.trim() || null,
       telephone: document.getElementById('telephone').value.trim(),
+      ghana_card_number: document.getElementById('ghanaCard').value.trim().toUpperCase(),
       position_rank: document.getElementById('positionRank').value,
       short_courses_rmu: document.getElementById('shortCourses').value,
       familiarisation_isps_gma: document.getElementById('isps').value,
@@ -114,6 +116,8 @@
       document.getElementById('saveButton').textContent = 'Submit Application';
       setFormDisabled(false);
       document.getElementById('documentsCard').style.display = 'none';
+      document.getElementById('certificationsCard').style.display = 'none';
+      document.getElementById('historyCard').style.display = 'none';
       return;
     }
 
@@ -123,6 +127,8 @@
       ' — submitted ' + fmtDateLong(application.submitted_at);
     document.getElementById('bannerStatus').innerHTML = statusBadge(application.status);
     document.getElementById('documentsCard').style.display = '';
+    document.getElementById('certificationsCard').style.display = '';
+    document.getElementById('historyCard').style.display = '';
 
     if (application.editable) {
       setFormDisabled(false);
@@ -136,6 +142,7 @@
         document.getElementById('saveButton').textContent = 'Save Changes';
       }
       document.getElementById('uploadForm').style.display = '';
+      document.getElementById('certForm').style.display = '';
     } else {
       setFormDisabled(true);
       document.getElementById('formTitle').textContent = 'Your Application';
@@ -143,7 +150,62 @@
         'Your application is ' + application.status + ' and can no longer be edited. ' +
         'Contact the Ghana Maritime Authority if a correction is needed.');
       document.getElementById('uploadForm').style.display = 'none';
+      document.getElementById('certForm').style.display = 'none';
     }
+  }
+
+  // ── Timeline ──
+
+  function loadHistory() {
+    if (!application) return;
+    portalFetch('/api/portal/application/history')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        document.getElementById('historyContainer').innerHTML = timelineHTML(data.history);
+      })
+      .catch(function (error) { console.error('Failed to load history:', error); });
+  }
+
+  // ── Certifications ──
+
+  function loadCertifications() {
+    if (!application) return;
+    portalFetch('/api/portal/certifications')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var certs = data.certifications || [];
+        var container = document.getElementById('certificationsList');
+        if (!certs.length) {
+          container.innerHTML = '<span class="muted">No certifications recorded yet.</span>';
+          return;
+        }
+        container.innerHTML = '<div class="table-container"><table><thead><tr>' +
+          '<th>Type</th><th>Title</th><th>Issued</th><th>Expires</th><th>Status</th><th></th>' +
+          '</tr></thead><tbody>' +
+          certs.map(function (cert) {
+            var removable = application.editable && cert.added_by === null;
+            return '<tr>' +
+              '<td class="text-sm">' + esc(cert.cert_type) + '</td>' +
+              '<td>' + esc(cert.title) + '</td>' +
+              '<td class="text-sm">' + (cert.issued_on ? fmtDateShort(cert.issued_on) : '—') + '</td>' +
+              '<td class="text-sm">' + (cert.expires_on ? fmtDateShort(cert.expires_on) : '—') + '</td>' +
+              '<td>' + certBadge(cert.status) + '</td>' +
+              '<td>' + (removable
+                ? '<button class="text-danger-action" data-cert="' + cert.id + '">Delete</button>'
+                : '') + '</td>' +
+            '</tr>';
+          }).join('') + '</tbody></table></div>';
+
+        container.querySelectorAll('button[data-cert]').forEach(function (button) {
+          button.addEventListener('click', function () {
+            if (!window.confirm('Delete this certification record?')) return;
+            portalFetch('/api/portal/certifications/' + button.getAttribute('data-cert'), { method: 'DELETE' })
+              .then(function () { loadCertifications(); })
+              .catch(function (error) { console.error(error); });
+          });
+        });
+      })
+      .catch(function (error) { console.error('Failed to load certifications:', error); });
   }
 
   // ── Documents ──
@@ -210,6 +272,8 @@
       if (application) fillForm(application);
       renderState();
       loadDocuments();
+      loadCertifications();
+      loadHistory();
     })
     .catch(function (error) { console.error(error); });
 
@@ -250,6 +314,8 @@
           ensureRankSelected();
           renderState();
           loadDocuments();
+          loadCertifications();
+          loadHistory();
           showBox('formSuccess', creating
             ? 'Application submitted. Your reference number is #' + application.id +
               '. A confirmation email has been sent.'
@@ -289,6 +355,37 @@
       })
       .catch(function (error) {
         message.textContent = error.message || 'Upload failed.';
+      });
+  });
+
+  // Certification add
+  document.getElementById('certForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var message = document.getElementById('certMessage');
+    var title = document.getElementById('certTitle').value.trim();
+    if (!title) { message.textContent = 'Enter a title.'; return; }
+    message.textContent = 'Saving...';
+    portalFetch('/api/portal/certifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cert_type: document.getElementById('certType').value,
+        title: title,
+        issued_on: document.getElementById('certIssued').value || null,
+        expires_on: document.getElementById('certExpires').value || null,
+        issuer: document.getElementById('certIssuer').value.trim() || null
+      })
+    })
+      .then(function (response) {
+        return response.json().then(function (data) {
+          if (!response.ok) throw new Error(detailText(data, 'Could not add the certification'));
+          message.textContent = 'Added.';
+          document.getElementById('certForm').reset();
+          loadCertifications();
+        });
+      })
+      .catch(function (error) {
+        message.textContent = error.message || 'Could not add the certification.';
       });
   });
 

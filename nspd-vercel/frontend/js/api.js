@@ -81,3 +81,36 @@ function fmtYears(value) {
 function fmtNumber(value) {
   return Number(value || 0).toLocaleString('en-US');
 }
+
+/** Badge for a certification expiry status from the API. */
+function certBadge(status) {
+  var labels = {
+    expired: 'Expired',
+    expiring_soon: 'Expiring Soon',
+    valid: 'Valid',
+    no_expiry: 'No Expiry'
+  };
+  var cls = 'cert-' + String(status || 'no_expiry').replace(/_/g, '-');
+  return '<span class="status-badge ' + cls + '">' + esc(labels[status] || status) + '</span>';
+}
+
+/** Render a status-history array (from /history endpoints) as a timeline. */
+function timelineHTML(history) {
+  if (!history || !history.length) return '<span class="muted">No history yet.</span>';
+  return '<ul class="timeline">' + history.map(function (event) {
+    var label;
+    if (event.action === 'application_submitted') {
+      label = '<strong>Application submitted</strong>';
+    } else if (event.action === 'application_resubmitted') {
+      label = '<strong>Resubmitted by applicant</strong>';
+    } else {
+      label = '<strong>Status changed</strong>' +
+        (event.details ? ': ' + esc(event.details) : '');
+    }
+    if (event.username) {
+      label += ' <span class="muted">by ' + esc(event.username) + '</span>';
+    }
+    return '<li>' + label + '<br><span class="timeline-date">' +
+      esc(fmtDateLong(event.created_at)) + '</span></li>';
+  }).join('') + '</ul>';
+}

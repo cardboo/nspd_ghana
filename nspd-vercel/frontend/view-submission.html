@@ -35,6 +35,7 @@
                         <button class="btn btn-secondary btn-sm" data-status="Rejected" style="background:#ef4444;color:#fff;">Reject</button>
                         <span class="muted" id="statusMessage"></span>
                     </div>
+                    <div id="historyContainer" style="margin-top: 14px;"></div>
                 </div>
 
                 <!-- Personal Information -->
@@ -53,6 +54,42 @@
                 <div class="card detail-card">
                     <h3 class="detail-section-title">Sea Experience</h3>
                     <div class="detail-grid" id="seaGrid"></div>
+                </div>
+
+                <!-- Certifications -->
+                <div class="card detail-card">
+                    <h3 class="detail-section-title">Certifications &amp; Medical Records</h3>
+                    <div id="certificationsList" class="muted">Loading...</div>
+                    <form id="certForm" class="inline-form" style="display:none; margin-top: 14px;">
+                        <div class="filter-group">
+                            <label>Type</label>
+                            <select id="certType" class="form-control">
+                                <option>Medical Certificate</option>
+                                <option>STCW Certificate</option>
+                                <option>RMU Short Course</option>
+                                <option>ISPS Familiarisation</option>
+                                <option>Other</option>
+                            </select>
+                        </div>
+                        <div class="filter-group" style="flex:1; min-width:180px;">
+                            <label>Title</label>
+                            <input type="text" id="certTitle" class="form-control" maxlength="150" placeholder="e.g. Seafarer Medical Fitness" required>
+                        </div>
+                        <div class="filter-group">
+                            <label>Issued</label>
+                            <input type="date" id="certIssued" class="form-control">
+                        </div>
+                        <div class="filter-group">
+                            <label>Expires</label>
+                            <input type="date" id="certExpires" class="form-control">
+                        </div>
+                        <div class="filter-group">
+                            <label>Issuer</label>
+                            <input type="text" id="certIssuer" class="form-control" maxlength="150" placeholder="e.g. GMA, RMU">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add</button>
+                        <span class="muted" id="certMessage"></span>
+                    </form>
                 </div>
 
                 <!-- Documents -->

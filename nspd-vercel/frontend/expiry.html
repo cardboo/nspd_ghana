@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expiry Watch - NSPD Ghana</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar-placeholder"></div>
+
+        <main class="main-content">
+            <div id="header-placeholder"></div>
+
+            <div class="content-body">
+                <div class="page-header">
+                    <h1>Certificate Expiry Watch</h1>
+                    <p class="page-subtitle">
+                        Certificates and medical records that are expired or expiring soon.
+                        Applicants receive automatic email reminders every week.
+                    </p>
+                </div>
+
+                <div class="card filter-card">
+                    <form id="horizonForm" class="filter-form">
+                        <div class="filter-group" style="flex: 0 0 220px;">
+                            <label>Horizon</label>
+                            <select id="horizonSelect" class="form-control">
+                                <option value="30">Next 30 days</option>
+                                <option value="60">Next 60 days</option>
+                                <option value="90" selected>Next 90 days</option>
+                                <option value="180">Next 180 days</option>
+                                <option value="365">Next 12 months</option>
+                            </select>
+                        </div>
+                        <div class="filter-actions">
+                            <button type="submit" class="btn btn-primary">Apply</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="results-info" id="resultsInfo"></div>
+
+                <div class="card">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Expires</th>
+                                    <th>Status</th>
+                                    <th>Certificate</th>
+                                    <th>Type</th>
+                                    <th>Seafarer</th>
+                                    <th>Rank</th>
+                                    <th>Application</th>
+                                    <th class="text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="expiryBody">
+                                <tr><td colspan="8" class="table-empty">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="js/api.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/layout.js"></script>
+    <script src="js/expiry.js"></script>
+</body>
+</html>

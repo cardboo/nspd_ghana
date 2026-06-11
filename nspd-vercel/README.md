@@ -33,6 +33,11 @@ Every feature is preserved: login/logout, role-based access control (Administrat
 | **Applicant administration** | Admins see all seafarer accounts on the Users page: verification state, linked application, deactivate/reactivate, resend verification emails |
 | **Scheduled cleanup** | Vercel Cron job deletes never-verified accounts after 30 days (`/api/cron/cleanup-unverified`, protected by `CRON_SECRET`) |
 | **Registration throttling** | Public endpoints (register, forgot-password, resend-verification) are rate-limited per IP |
+| **Certification tracking** | Certificates and medicals carry real issue/expiry dates (the old registry only had Yes/No flags); staff and applicants manage them on the detail/portal pages |
+| **Expiry Watch** | Staff page listing certificates expired or expiring within 30–365 days, plus a dashboard card; a weekly cron emails applicants (one mail per seafarer, repeated at most every 14 days) |
+| **Ghana Card number** | Required on new portal applications, normalised and protected by a UNIQUE index — duplicate submissions become structurally impossible going forward; searchable and included in CSV/PDF exports |
+| **Status timeline** | Submission and review history on the staff detail page (with reviewer names) and the applicant portal (anonymised), sourced from the audit trail |
+| **Reference search** | The submissions search box also matches `#575`-style reference numbers and Ghana Card numbers |
 
 ## Project Structure
 
@@ -146,6 +151,23 @@ Portal pages: `portal-register.html`, `portal-login.html`, `verify.html`, `porta
 
 Recovery pages: `forgot-password.html` and `reset-password.html`, realm-selected by `?for=staff` or `?for=portal`.
 
+### Certification & compliance endpoints
+
+| Method | Endpoint                                        | Auth      | Description |
+|--------|--------------------------------------------------|-----------|-------------|
+| GET    | `/api/applications/{id}/certifications`          | Cookie    | Certificates with computed expiry status |
+| POST   | `/api/applications/{id}/certifications`          | Reviewer+ | Add a record `{cert_type, title, issued_on?, expires_on?, issuer?}` |
+| DELETE | `/api/applications/certifications/{id}`          | Reviewer+ | Remove a record |
+| GET    | `/api/applications/{id}/history`                 | Cookie    | Submission/review timeline (audit-sourced) |
+| GET    | `/api/portal/certifications`                     | Portal    | Own records |
+| POST   | `/api/portal/certifications`                     | Portal    | Add while the application is editable |
+| DELETE | `/api/portal/certifications/{id}`                | Portal    | Remove own (self-added) record while editable |
+| GET    | `/api/portal/application/history`                | Portal    | Own timeline (staff names hidden) |
+| GET    | `/api/reports/expiring?days=N`                   | Reviewer+ | Expiry watchlist (default `EXPIRY_WARNING_DAYS`) |
+| GET    | `/api/cron/expiry-alerts`                        | Cron      | Weekly applicant expiry reminder emails |
+
+Expiry statuses: `expired`, `expiring_soon` (within `EXPIRY_WARNING_DAYS`), `valid`, `no_expiry`.
+
 Errors are JSON: `{"detail": "..."}` with proper status codes (400, 401, 403, 404, 409, 422, 429, 500).
 
 ## Authentication Notes
@@ -192,6 +214,8 @@ Copy `.env.example` to `.env` locally; in production set the same variables in *
 | `RESET_TOKEN_MINUTES` | Password-reset link validity | `60` |
 | `UNVERIFIED_RETENTION_DAYS` | Never-verified accounts are deleted after this many days | `30` |
 | `CRON_SECRET` | Shared secret for Vercel Cron — set it in production so `/api/cron/*` requires `Authorization: Bearer <secret>` | random string |
+| `EXPIRY_WARNING_DAYS` | Watchlist/dashboard horizon for "expiring soon" | `90` |
+| `EXPIRY_ALERT_DAYS` | Cron emails applicants when a certificate expires within this window | `30` |
 
 ## Run Locally
 

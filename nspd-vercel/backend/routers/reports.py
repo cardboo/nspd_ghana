@@ -10,8 +10,9 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user, require_role
+from ..config import settings
 from ..database import get_db
-from ..services import application_service, report_service
+from ..services import application_service, certification_service, report_service
 
 router = APIRouter(prefix="/api/reports", tags=["Reports"])
 
@@ -52,3 +53,17 @@ def duplicate_report(
     user: dict = Depends(require_role("Reviewer")),
 ):
     return application_service.find_duplicates(db)
+
+
+@router.get("/expiring")
+def expiring_certifications(
+    days: int = Query(0, ge=0, le=365),
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_role("Reviewer")),
+):
+    """Certificates expired or expiring within `days` (default: EXPIRY_WARNING_DAYS)."""
+    horizon = days or settings.expiry_warning_days
+    return {
+        "days": horizon,
+        "items": certification_service.expiring_watchlist(db, horizon),
+    }

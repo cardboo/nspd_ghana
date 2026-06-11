@@ -43,6 +43,9 @@ PASSWORD_RESET_COMPLETED = "password_reset_completed"
 VERIFICATION_RESENT = "verification_resent"
 APPLICANT_UPDATED = "applicant_updated"
 UNVERIFIED_CLEANUP = "unverified_cleanup"
+CERT_ADDED = "certification_added"
+CERT_DELETED = "certification_deleted"
+EXPIRY_ALERTS = "expiry_alerts_sent"
 
 
 def log(

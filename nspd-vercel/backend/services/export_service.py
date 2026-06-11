@@ -20,7 +20,7 @@ from fpdf import FPDF
 from fpdf.enums import XPos, YPos
 
 CSV_HEADERS = [
-    "ID", "Surname", "First Name", "Other Names", "Telephone", "Email",
+    "ID", "Surname", "First Name", "Other Names", "Telephone", "Ghana Card", "Email",
     "Position/Rank", "Short Courses (RMU)", "ISPS/GMA Familiarisation",
     "Attachment", "Medicals", "Sea Experience", "Total Sea Experience (Years)",
     "Last Ship Type", "Status", "Submitted Date",
@@ -61,6 +61,7 @@ def generate_csv(applications) -> str:
             app.first_name,
             app.other_names or "",
             app.telephone,
+            app.ghana_card_number or "",
             app.email,
             app.position_rank,
             app.short_courses_rmu,
@@ -126,6 +127,7 @@ def generate_submission_pdf(app) -> bytes:
     row("First Name", app.first_name)
     row("Other Names", app.other_names)
     row("Telephone", app.telephone)
+    row("Ghana Card", app.ghana_card_number)
     row("Email", app.email)
     row("Submitted At", _php_long_datetime(app.submitted_at))
 

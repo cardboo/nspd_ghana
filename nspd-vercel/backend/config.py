@@ -79,6 +79,12 @@ class Settings:
         # ── Account recovery & scheduled cleanup ──
         self.reset_token_minutes: int = int(os.environ.get("RESET_TOKEN_MINUTES", "60"))
         self.unverified_retention_days: int = int(os.environ.get("UNVERIFIED_RETENTION_DAYS", "30"))
+
+        # ── Certification expiry tracking ──
+        # Watchlist horizon (staff page + dashboard card)
+        self.expiry_warning_days: int = int(os.environ.get("EXPIRY_WARNING_DAYS", "90"))
+        # Cron emails applicants when a certificate expires within this window
+        self.expiry_alert_days: int = int(os.environ.get("EXPIRY_ALERT_DAYS", "30"))
         # Shared secret for Vercel Cron requests (Authorization: Bearer <secret>)
         self.cron_secret: str = os.environ.get("CRON_SECRET", "")
         self.is_vercel: bool = bool(os.environ.get("VERCEL"))

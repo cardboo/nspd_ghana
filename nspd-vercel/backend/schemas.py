@@ -1,8 +1,10 @@
 """Pydantic request/response schemas."""
 
+import re
+from datetime import date
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 ROLES = Literal["Administrator", "Reviewer", "Viewer"]
 STATUSES = Literal["Pending", "Under Review", "Approved", "Rejected"]
@@ -93,6 +95,23 @@ class ApplicantUpdateRequest(BaseModel):
     is_active: bool
 
 
+CERT_TYPES = Literal[
+    "Medical Certificate",
+    "STCW Certificate",
+    "RMU Short Course",
+    "ISPS Familiarisation",
+    "Other",
+]
+
+
+class CertificationForm(BaseModel):
+    cert_type: CERT_TYPES = "Other"
+    title: str = Field(..., min_length=1, max_length=150)
+    issued_on: Optional[date] = None
+    expires_on: Optional[date] = None
+    issuer: Optional[str] = Field(None, max_length=150)
+
+
 class ApplicationForm(BaseModel):
     """Fields a seafarer fills in — mirrors the applications table columns.
 
@@ -104,7 +123,16 @@ class ApplicationForm(BaseModel):
     first_name: str = Field(..., min_length=1, max_length=100)
     other_names: Optional[str] = Field(None, max_length=100)
     telephone: str = Field(..., min_length=3, max_length=100)
+    ghana_card_number: str = Field(..., min_length=5, max_length=30)
     position_rank: str = Field(..., min_length=1, max_length=100)
+
+    @field_validator("ghana_card_number")
+    @classmethod
+    def normalize_ghana_card(cls, value: str) -> str:
+        value = value.strip().upper()
+        if not re.fullmatch(r"[A-Z0-9-]+", value):
+            raise ValueError("Ghana Card number may only contain letters, digits, and dashes")
+        return value
     short_courses_rmu: YES_NO
     familiarisation_isps_gma: YES_NO
     attachment: YES_NO = "No"
