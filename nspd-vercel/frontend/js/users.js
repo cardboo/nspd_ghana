@@ -110,6 +110,19 @@
     document.getElementById('applicantsInfo').textContent =
       'Showing ' + data.items.length + ' of ' + data.total + ' accounts';
 
+    // Batch invitation state (seafarers in the registry without accounts)
+    var remaining = data.uninvited_unclaimed || 0;
+    var batchBtn = document.getElementById('inviteBatchBtn');
+    var batchInfo = document.getElementById('inviteBatchInfo');
+    if (remaining > 0) {
+      batchBtn.style.display = '';
+      batchInfo.textContent = remaining + ' seafarer(s) in the registry have no portal account yet. ' +
+        'Invitations are sent in batches of up to 20.';
+    } else {
+      batchBtn.style.display = 'none';
+      batchInfo.textContent = 'Every seafarer in the registry has a portal account or invitation.';
+    }
+
     if (!data.items.length) {
       tbody.innerHTML = '<tr><td colspan="7" class="table-empty">No seafarer accounts found</td></tr>';
     } else {
@@ -128,7 +141,11 @@
           '<td>' + application + '</td>' +
           '<td class="text-center"><input type="checkbox" data-applicant-active="' + a.id + '"' +
             (a.is_active ? ' checked' : '') + '></td>' +
-          '<td class="text-sm">' + (a.last_login ? fmtDateLong(a.last_login) : 'Never') + '</td>' +
+          '<td class="text-sm">' + (a.last_login
+            ? fmtDateLong(a.last_login)
+            : (a.invited_at
+              ? '<span class="status-badge status-pending">Invited ' + fmtDateShort(a.invited_at) + '</span>'
+              : 'Never')) + '</td>' +
           '<td class="text-center" style="white-space:nowrap;">' +
             '<button class="btn btn-primary btn-sm" data-applicant-save="' + a.id + '">Save</button>' +
             (!a.email_verified
@@ -224,6 +241,34 @@
       e.preventDefault();
       applicantPage = 1;
       loadApplicants();
+    });
+
+    document.getElementById('inviteBatchBtn').addEventListener('click', function () {
+      var button = this;
+      if (!window.confirm('Send portal invitations to the next batch of up to 20 seafarers?')) return;
+      button.disabled = true;
+      button.textContent = 'Sending...';
+      API.fetch('/api/applicants/invite-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 20 })
+      })
+        .then(function (response) {
+          return response.json().then(function (data) {
+            if (!response.ok) throw new Error(data.detail || 'Batch invite failed');
+            show('createSuccess', data.invited.length + ' invitation(s) sent' +
+              (data.skipped.length ? ', ' + data.skipped.length + ' skipped (invalid emails)' : '') +
+              '. ' + data.remaining + ' remaining.');
+            loadApplicants();
+          });
+        })
+        .catch(function (error) {
+          show('createError', error.message || 'Batch invite failed.');
+        })
+        .then(function () {
+          button.disabled = false;
+          button.textContent = 'Invite next 20';
+        });
     });
 
     document.getElementById('createForm').addEventListener('submit', function (e) {

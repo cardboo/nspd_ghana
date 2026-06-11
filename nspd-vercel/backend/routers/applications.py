@@ -138,7 +138,38 @@ def get_application(
 ):
     application = _get_or_404(db, application_id)
     reviewer_name = application_service.get_reviewer_name(db, application)
-    return {"application": application_service.serialize_detail(application, reviewer_name)}
+    return {
+        "application": application_service.serialize_detail(application, reviewer_name),
+        "portal_account": _portal_account_state(db, application),
+    }
+
+
+def _portal_account_state(db: Session, application) -> dict:
+    """How the seafarer relates to the portal: none / invited / active / unlinked."""
+    from ..models import Applicant
+
+    applicant = None
+    if application.applicant_id:
+        applicant = db.get(Applicant, application.applicant_id)
+    if applicant is None and application.email:
+        applicant = db.query(Applicant).filter(Applicant.email == application.email).first()
+
+    if applicant is None:
+        return {"status": "none"}
+
+    if applicant.last_login is not None:
+        status = "active"
+    elif applicant.invited_at is not None:
+        status = "invited"
+    else:
+        status = "registered_unused"
+    return {
+        "status": status,
+        "linked": application.applicant_id == applicant.id,
+        "email": applicant.email,
+        "invited_at": applicant.invited_at.isoformat() if applicant.invited_at else None,
+        "last_login": applicant.last_login.isoformat() if applicant.last_login else None,
+    }
 
 
 @router.put("/{application_id}/status")

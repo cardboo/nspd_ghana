@@ -16,12 +16,13 @@ from sqlalchemy.orm import Session
 from ..auth import get_client_ip, require_role
 from ..database import get_db
 from ..models import Applicant, Application
-from ..schemas import ApplicantUpdateRequest
+from ..schemas import ApplicantUpdateRequest, ClaimRequest, InviteBatchRequest
 from ..services import audit_service, recovery_service, throttle_service
 
 router = APIRouter(prefix="/api/applicants", tags=["Applicant Administration"])
 
 admin_required = Depends(require_role("Administrator"))
+reviewer_required = Depends(require_role("Reviewer"))
 
 PER_PAGE = 25
 
@@ -33,11 +34,26 @@ def _serialize(applicant: Applicant, application: Application = None) -> dict:
         "full_name": applicant.full_name,
         "email_verified": bool(applicant.email_verified),
         "is_active": bool(applicant.is_active),
+        "invited_at": applicant.invited_at.isoformat() if applicant.invited_at else None,
         "created_at": applicant.created_at.isoformat() if applicant.created_at else None,
         "last_login": applicant.last_login.isoformat() if applicant.last_login else None,
         "application_id": application.id if application else None,
         "application_status": application.status if application else None,
     }
+
+
+def _uninvited_email_count(db: Session) -> int:
+    """Distinct emails of unclaimed applications with no portal account yet."""
+    return (
+        db.query(func.count(func.distinct(Application.email)))
+        .filter(
+            Application.applicant_id.is_(None),
+            Application.email != "",
+            ~Application.email.in_(db.query(Applicant.email)),
+        )
+        .scalar()
+        or 0
+    )
 
 
 def _base_url(request: Request) -> str:
@@ -84,6 +100,103 @@ def list_applicants(
         "page": page,
         "per_page": PER_PAGE,
         "total_pages": total_pages,
+        "uninvited_unclaimed": _uninvited_email_count(db),
+    }
+
+
+@router.post("/invite")
+def invite_applicant(
+    body: ClaimRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: dict = reviewer_required,
+):
+    """Create/refresh a portal account for one application's email and
+    send (or resend) the set-your-password invitation."""
+    application = db.get(Application, body.application_id)
+    if application is None:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    def _base_url():
+        proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+        host = request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.netloc
+        return f"{proto}://{host}"
+
+    applicant, resent = recovery_service.invite_for_application(db, application, _base_url())
+    audit_service.log(
+        db,
+        audit_service.APPLICANT_INVITED,
+        user=user,
+        entity="application",
+        entity_id=application.id,
+        details=f"{'resent to' if resent else 'invited'} {applicant.email}",
+        ip=get_client_ip(request),
+    )
+    application_row = (
+        db.query(Application).filter(Application.applicant_id == applicant.id).first()
+    )
+    return {"applicant": _serialize(applicant, application_row), "resent": resent}
+
+
+@router.post("/invite-batch")
+def invite_batch(
+    body: InviteBatchRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: dict = admin_required,
+):
+    """Invite the next batch of seafarers without portal accounts.
+
+    Processes distinct emails (the most recent unclaimed application per
+    email) so duplicate submissions yield a single account. Capped so the
+    invitation emails fit one serverless invocation.
+    """
+    def _base_url():
+        proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+        host = request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.netloc
+        return f"{proto}://{host}"
+
+    candidates = (
+        db.query(Application)
+        .filter(
+            Application.applicant_id.is_(None),
+            Application.email != "",
+            ~Application.email.in_(db.query(Applicant.email)),
+        )
+        .order_by(Application.email, Application.submitted_at.desc())
+        .all()
+    )
+
+    invited, skipped = [], []
+    seen_emails = set()
+    base_url = _base_url()
+    for application in candidates:
+        if len(invited) >= body.limit:
+            break
+        if application.email in seen_emails:
+            continue
+        seen_emails.add(application.email)
+        try:
+            applicant, _ = recovery_service.invite_for_application(db, application, base_url)
+            invited.append(application.id)
+            audit_service.log(
+                db,
+                audit_service.APPLICANT_INVITED,
+                user=user,
+                entity="application",
+                entity_id=application.id,
+                details=f"invited {applicant.email} (batch)",
+                ip=get_client_ip(request),
+            )
+        except HTTPException as exc:
+            # e.g. malformed email on the record — skip and keep going
+            skipped.append({"application_id": application.id, "reason": exc.detail})
+            db.rollback()
+
+    return {
+        "invited": invited,
+        "skipped": skipped,
+        "remaining": _uninvited_email_count(db),
     }
 
 

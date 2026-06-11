@@ -135,6 +135,7 @@ class Applicant(Base):
     email_verified = Column(Boolean, nullable=False, default=False)
     is_active = Column(Boolean, nullable=False, default=True)
     verify_token = Column(String(64), nullable=True)
+    invited_at = Column(TIMESTAMP, nullable=True)
     reset_token = Column(String(64), nullable=True)
     reset_token_expires = Column(TIMESTAMP, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())

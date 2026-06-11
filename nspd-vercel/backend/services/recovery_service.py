@@ -10,10 +10,11 @@ Design notes:
     callers always return the same generic message.
 """
 
+import re
 import secrets
 
 from fastapi import HTTPException
-from sqlalchemy import or_, text
+from sqlalchemy import func, or_, text
 from sqlalchemy.orm import Session
 
 from ..auth import hash_password
@@ -140,6 +141,90 @@ def complete_portal_reset(db: Session, token: str, new_password: str) -> Applica
     db.commit()
     db.refresh(applicant)
     return applicant
+
+
+# ──────────────────────────────────────────────
+# Portal invitations (staff-initiated outreach)
+# ──────────────────────────────────────────────
+
+EMAIL_SHAPE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def invite_for_application(db: Session, application, base_url: str) -> tuple:
+    """Create (or refresh) a portal account for an application's email,
+    link the record, and send a set-your-password invitation.
+
+    Returns (applicant, resent) — resent is True when the invitation was
+    re-issued for an account that hasn't been used yet. Raises 409 once
+    the account has actually been used (they should use forgot-password).
+    """
+    email = (application.email or "").strip()
+    if not EMAIL_SHAPE.fullmatch(email):
+        raise HTTPException(
+            status_code=400,
+            detail="This record has no valid email address — correct it before inviting.",
+        )
+
+    applicant = db.query(Applicant).filter(Applicant.email == email).first()
+    resent = applicant is not None
+
+    if applicant is not None:
+        if applicant.last_login is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="This seafarer already has an active portal account. "
+                       "They can use Forgot Password to regain access.",
+            )
+        if not applicant.is_active:
+            raise HTTPException(status_code=409, detail="This portal account has been deactivated.")
+    else:
+        full_name = f"{application.first_name or ''} {application.surname or ''}".strip() or email
+        applicant = Applicant(
+            email=email,
+            # Unusable until the invitation link sets a real one
+            password_hash=hash_password(secrets.token_hex(16)),
+            full_name=full_name[:150],
+            email_verified=False,
+            is_active=True,
+        )
+        db.add(applicant)
+        db.flush()
+
+    # Link the record now: the only way into this account is the emailed
+    # link, so mailbox ownership equals record ownership.
+    if application.applicant_id is None:
+        application.applicant_id = applicant.id
+    elif application.applicant_id != applicant.id:
+        raise HTTPException(status_code=409, detail="This record is linked to a different account.")
+
+    days = int(settings.invite_expires_days)
+    applicant.reset_token = secrets.token_hex(32)
+    applicant.reset_token_expires = text(f"NOW() + INTERVAL {days} DAY")
+    applicant.invited_at = func.now()
+    db.commit()
+    db.refresh(applicant)
+
+    link = f"{base_url}/reset-password.html?for=portal&token={applicant.reset_token}"
+    email_service.send_email(
+        db,
+        recipient=applicant.email,
+        subject="NSPD Ghana — your seafarer portal account",
+        html_body=f"""
+<p>Dear {applicant.full_name},</p>
+<p>The Ghana Maritime Authority has created a seafarer portal account for
+you on the National Seafarer Placement Database (NSPD). Your existing
+application (reference <strong>#{application.id}</strong>) is linked to it.</p>
+<p>Click the link below to set your password (valid for {days} days):</p>
+<p><a href="{link}">{link}</a></p>
+<p>On the portal you can track your application status, upload documents
+and certificate renewals, and record your sea service.</p>
+<p>If the link has expired, contact the GMA or use Forgot Password on the
+portal sign-in page.</p>
+<p>— NSPD Ghana, Ghana Maritime Authority</p>
+""",
+        application_id=application.id,
+    )
+    return applicant, resent
 
 
 # ──────────────────────────────────────────────

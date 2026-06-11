@@ -40,6 +40,7 @@ Every feature is preserved: login/logout, role-based access control (Administrat
 | **Legacy record claiming** | A seafarer whose imported application predates the portal can claim it: unclaimed records matching their **verified** email are offered at login, one click links the record to their account (audited) |
 | **Renewals after approval** | The application *form* locks once review starts, but documents, certifications, and voyages stay updatable on Approved applications (frozen only while Under Review) — so expiry-alert recipients can actually upload their renewals |
 | **Document verification** | Reviewers mark each uploaded file Verified / Rejected; applicants see the verification badge on their portal |
+| **Portal invitations** | Staff proactively onboard seafarers without accounts: one click creates the account from the record's email, links the record, and emails a set-your-password link (7 days). Resend re-issues the link (invalidating the old one) for "I never got it" cases; admins can work through the whole registry in batches of 20 from the Users page |
 | **Certification tracking** | Certificates and medicals carry real issue/expiry dates (the old registry only had Yes/No flags); staff and applicants manage them on the detail/portal pages |
 | **Expiry Watch** | Staff page listing certificates expired or expiring within 30–365 days, plus a dashboard card; a weekly cron emails applicants (one mail per seafarer, repeated at most every 14 days) |
 | **Ghana Card number** | Required on new portal applications, normalised and protected by a UNIQUE index — duplicate submissions become structurally impossible going forward; searchable and included in CSV/PDF exports |
@@ -175,6 +176,8 @@ Recovery pages: `forgot-password.html` and `reset-password.html`, realm-selected
 | GET    | `/api/cron/weekly-digest`                 | Cron      | Email the weekly summary to active Administrators (Mondays 07:00) |
 | POST   | `/api/portal/claim`                       | Portal    | Link an unclaimed legacy application matching the verified account email (`{application_id}`; candidates listed in `/api/portal/me` as `claimable`) |
 | PUT    | `/api/documents/{id}/verify`              | Reviewer+ | Mark a document Verified / Rejected / Pending (audited) |
+| POST   | `/api/applicants/invite`                  | Reviewer+ | Create/refresh a portal account for `{application_id}` and email the set-password invitation (resend while unused; 409 once active) |
+| POST   | `/api/applicants/invite-batch`            | Admin     | Invite the next `{limit}` (≤20) seafarers without accounts; distinct emails, most recent record per email |
 
 ### Certification & compliance endpoints
 

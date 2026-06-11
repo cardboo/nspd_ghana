@@ -78,6 +78,8 @@ class Settings:
 
         # ── Account recovery & scheduled cleanup ──
         self.reset_token_minutes: int = int(os.environ.get("RESET_TOKEN_MINUTES", "60"))
+        # Portal invitation links live longer than self-requested resets
+        self.invite_expires_days: int = int(os.environ.get("INVITE_EXPIRES_DAYS", "7"))
         self.unverified_retention_days: int = int(os.environ.get("UNVERIFIED_RETENTION_DAYS", "30"))
 
         # ── Certification expiry tracking ──

@@ -147,6 +147,11 @@ class ClaimRequest(BaseModel):
     application_id: int = Field(..., gt=0)
 
 
+class InviteBatchRequest(BaseModel):
+    # Capped so the invitation emails fit one serverless invocation
+    limit: int = Field(20, ge=1, le=20)
+
+
 class DocumentVerifyRequest(BaseModel):
     status: Literal["Verified", "Rejected", "Pending"]
 

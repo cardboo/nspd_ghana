@@ -43,6 +43,8 @@
     return '<span class="status-badge ' + cls + '">' + esc(label) + '</span>';
   }
 
+  var currentPortalAccount = null;
+
   function renderStatus(app) {
     var html = '';
     html += detailItem('Current Status', statusBadge(app.status));
@@ -52,7 +54,75 @@
     if (app.reviewed_at) {
       html += detailItem('Reviewed At', esc(fmtDateLong(app.reviewed_at)));
     }
+    if (currentPortalAccount) {
+      html += detailItem('Portal Account', portalAccountHTML(currentPortalAccount));
+    }
     document.getElementById('statusGrid').innerHTML = html;
+    wireInviteButton();
+  }
+
+  function portalAccountHTML(account) {
+    if (account.status === 'active') {
+      return '<span class="status-badge status-approved">Active</span> ' +
+        '<span class="muted">' + esc(account.email) +
+        (account.last_login ? ' — last sign-in ' + esc(fmtDateShort(account.last_login)) : '') + '</span>';
+    }
+    if (account.status === 'invited') {
+      return '<span class="status-badge status-pending">Invited</span> ' +
+        '<span class="muted">' + esc(fmtDateShort(account.invited_at)) + ', not used yet</span>' +
+        (isReviewer()
+          ? ' <button class="btn btn-secondary btn-sm" id="inviteBtn">Resend Invitation</button>'
+          : '') +
+        ' <span class="muted" id="inviteMessage"></span>';
+    }
+    if (account.status === 'registered_unused') {
+      return '<span class="status-badge status-pending">Registered, never signed in</span> ' +
+        '<span class="muted">' + esc(account.email) + '</span>' +
+        (isReviewer()
+          ? ' <button class="btn btn-secondary btn-sm" id="inviteBtn">Send Invitation</button>'
+          : '') +
+        ' <span class="muted" id="inviteMessage"></span>';
+    }
+    return '<span class="muted">None</span>' +
+      (isReviewer()
+        ? ' <button class="btn btn-primary btn-sm" id="inviteBtn">Send Portal Invitation</button>'
+        : '') +
+      ' <span class="muted" id="inviteMessage"></span>';
+  }
+
+  function wireInviteButton() {
+    var button = document.getElementById('inviteBtn');
+    if (!button) return;
+    button.addEventListener('click', function () {
+      var message = document.getElementById('inviteMessage');
+      message.textContent = 'Sending...';
+      button.disabled = true;
+      API.fetch('/api/applicants/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ application_id: id })
+      })
+        .then(function (response) {
+          return response.json().then(function (data) {
+            if (!response.ok) throw new Error(data.detail || 'Invitation failed');
+            currentPortalAccount = {
+              status: 'invited',
+              linked: true,
+              email: data.applicant.email,
+              invited_at: data.applicant.invited_at,
+              last_login: null
+            };
+            message.textContent = (data.resent ? 'Invitation resent to ' : 'Invitation sent to ') +
+              data.applicant.email + '.';
+            button.textContent = 'Resend Invitation';
+            button.disabled = false;
+          });
+        })
+        .catch(function (error) {
+          message.textContent = error.message || 'Invitation failed.';
+          button.disabled = false;
+        });
+    });
   }
 
   function renderDetails(app) {
@@ -501,6 +571,7 @@
           pdfLink.href = '/api/exports/pdf/' + id;
           pdfLink.style.display = '';
         }
+        currentPortalAccount = data.portal_account || null;
         renderDetails(data.application);
         wireStatusActions();
         wireUploadForm();
