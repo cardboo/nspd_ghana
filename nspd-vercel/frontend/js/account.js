@@ -32,10 +32,107 @@
           html += detailItem('Last Login', esc(fmtDateLong(profile.last_login)));
         }
         document.getElementById('profileGrid').innerHTML = html;
+        renderTotpState(profile.totp_enabled);
       })
       .catch(function (error) {
         console.error('Failed to load profile:', error);
       });
+
+    // ── Two-factor authentication ──
+
+    function totpShow(id, message) {
+      var box = document.getElementById(id);
+      box.textContent = message;
+      box.style.display = '';
+    }
+
+    function totpHide(id) {
+      document.getElementById(id).style.display = 'none';
+    }
+
+    function renderTotpState(enabled) {
+      totpHide('totpError');
+      document.getElementById('totpSetupPanel').style.display = 'none';
+      if (enabled) {
+        document.getElementById('totpStatus').textContent =
+          'Two-factor authentication is ENABLED. Signing in requires a code from your authenticator app.';
+        document.getElementById('totpSetupBtn').style.display = 'none';
+        document.getElementById('totpDisableForm').style.display = '';
+      } else {
+        document.getElementById('totpStatus').textContent =
+          'Two-factor authentication is OFF. Strongly recommended for Administrator accounts.';
+        document.getElementById('totpSetupBtn').style.display = '';
+        document.getElementById('totpDisableForm').style.display = 'none';
+      }
+    }
+
+    document.getElementById('totpSetupBtn').addEventListener('click', function () {
+      totpHide('totpError');
+      totpHide('totpSuccess');
+      API.fetch('/api/account/2fa/setup', { method: 'POST' })
+        .then(function (response) {
+          return response.json().then(function (data) {
+            if (!response.ok) throw new Error(data.detail || 'Setup failed');
+            document.getElementById('totpSetupBtn').style.display = 'none';
+            document.getElementById('totpSetupPanel').style.display = '';
+            document.getElementById('totpSecret').textContent = data.secret;
+            var qrContainer = document.getElementById('totpQr');
+            qrContainer.innerHTML = '';
+            if (window.QRCode) {
+              new QRCode(qrContainer, { text: data.otpauth_uri, width: 180, height: 180 });
+            } else {
+              qrContainer.innerHTML = '<span class="muted">QR library unavailable — enter the secret manually.</span>';
+            }
+          });
+        })
+        .catch(function (error) {
+          totpShow('totpError', error.message || '2FA setup failed.');
+        });
+    });
+
+    document.getElementById('totpEnableBtn').addEventListener('click', function () {
+      totpHide('totpError');
+      API.fetch('/api/account/2fa/enable', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: document.getElementById('totpEnableCode').value.trim() })
+      })
+        .then(function (response) {
+          return response.json().then(function (data) {
+            if (!response.ok) throw new Error(data.detail || 'Could not enable 2FA');
+            totpShow('totpSuccess', 'Two-factor authentication enabled.');
+            renderTotpState(true);
+          });
+        })
+        .catch(function (error) {
+          totpShow('totpError', error.message || 'Could not enable 2FA.');
+        });
+    });
+
+    document.getElementById('totpDisableForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      totpHide('totpError');
+      totpHide('totpSuccess');
+      API.fetch('/api/account/2fa/disable', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          password: document.getElementById('totpDisablePassword').value,
+          code: document.getElementById('totpDisableCode').value.trim()
+        })
+      })
+        .then(function (response) {
+          return response.json().then(function (data) {
+            if (!response.ok) throw new Error(data.detail || 'Could not disable 2FA');
+            document.getElementById('totpDisableForm').reset();
+            totpShow('totpSuccess', 'Two-factor authentication disabled.');
+            renderTotpState(false);
+          });
+        })
+        .catch(function (error) {
+          totpShow('totpError', error.message || 'Could not disable 2FA.');
+        });
+    });
 
     var form = document.getElementById('passwordForm');
     var errorBox = document.getElementById('passwordError');

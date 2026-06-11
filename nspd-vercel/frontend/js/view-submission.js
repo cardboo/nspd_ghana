@@ -221,6 +221,94 @@
     });
   }
 
+  // ── Voyage history ──
+
+  function loadVoyages() {
+    API.json('/api/applications/' + id + '/voyages')
+      .then(function (data) {
+        var voyages = data.voyages || [];
+        var summary = data.summary || {};
+        document.getElementById('voyageSummary').textContent = summary.total_voyages
+          ? summary.total_voyages + ' voyage(s), ' + summary.total_days + ' days of logged sea service' +
+            (summary.currently_onboard ? ' — currently on board' : '')
+          : '';
+        var container = document.getElementById('voyagesList');
+        if (!voyages.length) {
+          container.innerHTML = '<span class="muted">No voyages recorded yet.</span>';
+          return;
+        }
+        container.innerHTML = '<div class="table-container"><table><thead><tr>' +
+          '<th>Vessel</th><th>Type</th><th>Employer</th><th>Rank</th><th>Signed On</th><th>Signed Off</th><th>Days</th><th></th>' +
+          '</tr></thead><tbody>' +
+          voyages.map(function (voyage) {
+            return '<tr>' +
+              '<td><strong>' + esc(voyage.vessel_name) + '</strong></td>' +
+              '<td class="text-sm">' + esc(voyage.vessel_type || '') + '</td>' +
+              '<td class="text-sm">' + esc(voyage.employer || '') + '</td>' +
+              '<td class="text-sm">' + esc(voyage.rank_held || '') + '</td>' +
+              '<td class="text-sm">' + (voyage.signed_on ? fmtDateShort(voyage.signed_on) : '—') + '</td>' +
+              '<td class="text-sm">' + (voyage.onboard
+                ? '<span class="status-badge status-approved">On board</span>'
+                : (voyage.signed_off ? fmtDateShort(voyage.signed_off) : '—')) + '</td>' +
+              '<td class="text-sm">' + (voyage.days !== null ? voyage.days : '—') + '</td>' +
+              '<td>' + (isReviewer()
+                ? '<button class="text-danger-action" data-voyage="' + voyage.id + '">Delete</button>'
+                : '') + '</td>' +
+            '</tr>';
+          }).join('') + '</tbody></table></div>';
+
+        container.querySelectorAll('button[data-voyage]').forEach(function (button) {
+          button.addEventListener('click', function () {
+            if (!window.confirm('Delete this voyage record?')) return;
+            API.fetch('/api/applications/voyages/' + button.getAttribute('data-voyage'), { method: 'DELETE' })
+              .then(function () { loadVoyages(); })
+              .catch(function (error) { console.error(error); });
+          });
+        });
+      })
+      .catch(function (error) { console.error('Failed to load voyages:', error); });
+  }
+
+  function wireVoyageForm() {
+    if (!isReviewer()) return;
+    var form = document.getElementById('voyageForm');
+    form.style.display = '';
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var message = document.getElementById('voyageMessage');
+      var vessel = document.getElementById('voyVessel').value.trim();
+      if (!vessel) { message.textContent = 'Enter a vessel name.'; return; }
+      message.textContent = 'Saving...';
+      API.fetch('/api/applications/' + id + '/voyages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vessel_name: vessel,
+          vessel_type: document.getElementById('voyType').value.trim() || null,
+          employer: document.getElementById('voyEmployer').value.trim() || null,
+          rank_held: document.getElementById('voyRank').value.trim() || null,
+          signed_on: document.getElementById('voySignedOn').value || null,
+          signed_off: document.getElementById('voySignedOff').value || null
+        })
+      })
+        .then(function (response) {
+          return response.json().then(function (data) {
+            if (!response.ok) {
+              var detail = data.detail;
+              if (Array.isArray(detail)) detail = detail.map(function (d) { return d.msg; }).join('; ');
+              throw new Error(detail || 'Could not add the voyage');
+            }
+            message.textContent = 'Added.';
+            form.reset();
+            loadVoyages();
+          });
+        })
+        .catch(function (error) {
+          message.textContent = error.message || 'Could not add the voyage.';
+        });
+    });
+  }
+
   // ── Documents ──
 
   function fmtSize(bytes) {
@@ -388,9 +476,11 @@
         wireUploadForm();
         wireCommentForm();
         wireCertForm();
+        wireVoyageForm();
         loadDocuments();
         loadComments();
         loadCertifications();
+        loadVoyages();
         loadHistory();
       })
       .catch(function (error) {

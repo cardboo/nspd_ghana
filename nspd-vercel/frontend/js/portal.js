@@ -117,6 +117,7 @@
       setFormDisabled(false);
       document.getElementById('documentsCard').style.display = 'none';
       document.getElementById('certificationsCard').style.display = 'none';
+      document.getElementById('voyagesCard').style.display = 'none';
       document.getElementById('historyCard').style.display = 'none';
       return;
     }
@@ -128,6 +129,7 @@
     document.getElementById('bannerStatus').innerHTML = statusBadge(application.status);
     document.getElementById('documentsCard').style.display = '';
     document.getElementById('certificationsCard').style.display = '';
+    document.getElementById('voyagesCard').style.display = '';
     document.getElementById('historyCard').style.display = '';
 
     if (application.editable) {
@@ -143,6 +145,7 @@
       }
       document.getElementById('uploadForm').style.display = '';
       document.getElementById('certForm').style.display = '';
+      document.getElementById('voyageForm').style.display = '';
     } else {
       setFormDisabled(true);
       document.getElementById('formTitle').textContent = 'Your Application';
@@ -151,6 +154,7 @@
         'Contact the Ghana Maritime Authority if a correction is needed.');
       document.getElementById('uploadForm').style.display = 'none';
       document.getElementById('certForm').style.display = 'none';
+      document.getElementById('voyageForm').style.display = 'none';
     }
   }
 
@@ -206,6 +210,57 @@
         });
       })
       .catch(function (error) { console.error('Failed to load certifications:', error); });
+  }
+
+  // ── Voyage history ──
+
+  function loadVoyages() {
+    if (!application) return;
+    portalFetch('/api/portal/voyages')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var voyages = data.voyages || [];
+        var summary = data.summary || {};
+        document.getElementById('voyageSummary').textContent = summary.total_voyages
+          ? summary.total_voyages + ' voyage(s), ' + summary.total_days + ' days of logged sea service' +
+            (summary.currently_onboard ? ' — currently on board' : '')
+          : '';
+        var container = document.getElementById('voyagesList');
+        if (!voyages.length) {
+          container.innerHTML = '<span class="muted">No voyages recorded yet.</span>';
+          return;
+        }
+        container.innerHTML = '<div class="table-container"><table><thead><tr>' +
+          '<th>Vessel</th><th>Employer</th><th>Rank</th><th>Signed On</th><th>Signed Off</th><th>Days</th><th></th>' +
+          '</tr></thead><tbody>' +
+          voyages.map(function (voyage) {
+            var removable = application.editable && voyage.added_by === null;
+            return '<tr>' +
+              '<td><strong>' + esc(voyage.vessel_name) + '</strong>' +
+                (voyage.vessel_type ? ' <span class="muted">(' + esc(voyage.vessel_type) + ')</span>' : '') + '</td>' +
+              '<td class="text-sm">' + esc(voyage.employer || '') + '</td>' +
+              '<td class="text-sm">' + esc(voyage.rank_held || '') + '</td>' +
+              '<td class="text-sm">' + (voyage.signed_on ? fmtDateShort(voyage.signed_on) : '—') + '</td>' +
+              '<td class="text-sm">' + (voyage.onboard
+                ? '<span class="status-badge status-approved">On board</span>'
+                : (voyage.signed_off ? fmtDateShort(voyage.signed_off) : '—')) + '</td>' +
+              '<td class="text-sm">' + (voyage.days !== null ? voyage.days : '—') + '</td>' +
+              '<td>' + (removable
+                ? '<button class="text-danger-action" data-voyage="' + voyage.id + '">Delete</button>'
+                : '') + '</td>' +
+            '</tr>';
+          }).join('') + '</tbody></table></div>';
+
+        container.querySelectorAll('button[data-voyage]').forEach(function (button) {
+          button.addEventListener('click', function () {
+            if (!window.confirm('Delete this voyage record?')) return;
+            portalFetch('/api/portal/voyages/' + button.getAttribute('data-voyage'), { method: 'DELETE' })
+              .then(function () { loadVoyages(); })
+              .catch(function (error) { console.error(error); });
+          });
+        });
+      })
+      .catch(function (error) { console.error('Failed to load voyages:', error); });
   }
 
   // ── Documents ──
@@ -273,6 +328,7 @@
       renderState();
       loadDocuments();
       loadCertifications();
+      loadVoyages();
       loadHistory();
     })
     .catch(function (error) { console.error(error); });
@@ -315,6 +371,7 @@
           renderState();
           loadDocuments();
           loadCertifications();
+          loadVoyages();
           loadHistory();
           showBox('formSuccess', creating
             ? 'Application submitted. Your reference number is #' + application.id +
@@ -386,6 +443,38 @@
       })
       .catch(function (error) {
         message.textContent = error.message || 'Could not add the certification.';
+      });
+  });
+
+  // Voyage add
+  document.getElementById('voyageForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var message = document.getElementById('voyageMessage');
+    var vessel = document.getElementById('voyVessel').value.trim();
+    if (!vessel) { message.textContent = 'Enter a vessel name.'; return; }
+    message.textContent = 'Saving...';
+    portalFetch('/api/portal/voyages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vessel_name: vessel,
+        vessel_type: document.getElementById('voyType').value.trim() || null,
+        employer: document.getElementById('voyEmployer').value.trim() || null,
+        rank_held: document.getElementById('voyRank').value.trim() || null,
+        signed_on: document.getElementById('voySignedOn').value || null,
+        signed_off: document.getElementById('voySignedOff').value || null
+      })
+    })
+      .then(function (response) {
+        return response.json().then(function (data) {
+          if (!response.ok) throw new Error(detailText(data, 'Could not add the voyage'));
+          message.textContent = 'Added.';
+          document.getElementById('voyageForm').reset();
+          loadVoyages();
+        });
+      })
+      .catch(function (error) {
+        message.textContent = error.message || 'Could not add the voyage.';
       });
   });
 

@@ -46,6 +46,13 @@ UNVERIFIED_CLEANUP = "unverified_cleanup"
 CERT_ADDED = "certification_added"
 CERT_DELETED = "certification_deleted"
 EXPIRY_ALERTS = "expiry_alerts_sent"
+VOYAGE_ADDED = "voyage_added"
+VOYAGE_DELETED = "voyage_deleted"
+BULK_STATUS = "bulk_status_change"
+TOTP_ENABLED = "totp_enabled"
+TOTP_DISABLED = "totp_disabled"
+LOGIN_TOTP_FAILED = "login_totp_failed"
+WEEKLY_DIGEST = "weekly_digest_sent"
 
 
 def log(

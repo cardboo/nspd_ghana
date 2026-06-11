@@ -26,6 +26,17 @@
                 <button type="submit" class="btn btn-primary btn-block">Sign In</button>
             </div>
         </form>
+        <!-- Two-factor step (shown when the account has 2FA enabled) -->
+        <form id="totpForm" style="display:none">
+            <div class="form-group">
+                <label for="totpCode">Authentication Code</label>
+                <input type="text" id="totpCode" class="form-control" maxlength="8" inputmode="numeric"
+                    placeholder="6-digit code from your app" autocomplete="one-time-code">
+            </div>
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary btn-block">Verify</button>
+            </div>
+        </form>
         <div class="auth-links">
             <a href="forgot-password.html?for=staff" class="link-primary">Forgot password?</a><br>
             Are you a seafarer? <a href="portal-login.html" class="link-primary">Apply or track your application</a>

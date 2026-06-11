@@ -28,7 +28,13 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_client_ip, get_current_user, require_role
 from ..database import get_db
-from ..schemas import CertificationForm, CommentRequest, StatusUpdateRequest
+from ..schemas import (
+    BulkStatusRequest,
+    CertificationForm,
+    CommentRequest,
+    StatusUpdateRequest,
+    VoyageForm,
+)
 from ..services import (
     application_service,
     audit_service,
@@ -36,9 +42,42 @@ from ..services import (
     document_service,
     email_service,
     storage_service,
+    voyage_service,
 )
 
 router = APIRouter(prefix="/api/applications", tags=["Applications"])
+
+
+@router.post("/bulk-status")
+def bulk_status(
+    body: BulkStatusRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_role("Reviewer")),
+):
+    """Apply one review decision to up to 20 applications at once."""
+    updated, skipped = [], []
+    emails = {"sent": 0, "skipped": 0, "failed": 0}
+
+    for application_id in dict.fromkeys(body.ids):  # dedupe, keep order
+        application = application_service.get_application(db, application_id)
+        if application is None or application.status == body.status:
+            skipped.append(application_id)
+            continue
+        application_service.update_status(db, application, body.status, user)
+        notification = email_service.notify_status_change(db, application, body.status)
+        emails[notification.status if notification.status in emails else "failed"] += 1
+        updated.append(application_id)
+
+    audit_service.log(
+        db,
+        audit_service.BULK_STATUS,
+        user=user,
+        entity="applications",
+        details=f"-> {body.status}: {len(updated)} updated (ids={updated}), {len(skipped)} skipped",
+        ip=get_client_ip(request),
+    )
+    return {"updated": updated, "skipped": skipped, "emails": emails}
 
 
 @router.get("")
@@ -231,6 +270,60 @@ def delete_certification(
         ip=get_client_ip(request),
     )
     return {"message": "Certification deleted"}
+
+
+@router.get("/{application_id}/voyages")
+def list_voyages(
+    application_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    _get_or_404(db, application_id)
+    return voyage_service.list_for_application(db, application_id)
+
+
+@router.post("/{application_id}/voyages", status_code=201)
+def add_voyage(
+    application_id: int,
+    body: VoyageForm,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_role("Reviewer")),
+):
+    _get_or_404(db, application_id)
+    voyage = voyage_service.create(db, application_id, body, added_by=user["id"])
+    audit_service.log(
+        db,
+        audit_service.VOYAGE_ADDED,
+        user=user,
+        entity="application",
+        entity_id=application_id,
+        details=f"{voyage.vessel_name} ({voyage.employer or 'no employer'})",
+        ip=get_client_ip(request),
+    )
+    return {"voyage": voyage_service.serialize(voyage)}
+
+
+@router.delete("/voyages/{voyage_id}")
+def delete_voyage(
+    voyage_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_role("Reviewer")),
+):
+    voyage = voyage_service.get_or_404(db, voyage_id)
+    application_id, vessel = voyage.application_id, voyage.vessel_name
+    voyage_service.delete(db, voyage)
+    audit_service.log(
+        db,
+        audit_service.VOYAGE_DELETED,
+        user=user,
+        entity="application",
+        entity_id=application_id,
+        details=vessel,
+        ip=get_client_ip(request),
+    )
+    return {"message": "Voyage deleted"}
 
 
 @router.get("/{application_id}/documents")

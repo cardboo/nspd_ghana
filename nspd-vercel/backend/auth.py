@@ -144,6 +144,41 @@ def get_client_ip(request: Request) -> str:
 
 
 # ──────────────────────────────────────────────
+# Two-factor authentication (TOTP) pre-auth tokens
+# ──────────────────────────────────────────────
+
+PREAUTH_REALM = "2fa-pending"
+PREAUTH_MINUTES = 5
+
+
+def create_preauth_token(user) -> str:
+    """Short-lived token proving the password step passed, pending TOTP.
+
+    Grants no API access: get_current_user / get_current_applicant both
+    reject this realm.
+    """
+    now = dt.datetime.now(dt.timezone.utc)
+    payload = {
+        "realm": PREAUTH_REALM,
+        "sub": str(user.id),
+        "iat": now,
+        "exp": now + dt.timedelta(minutes=PREAUTH_MINUTES),
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+
+def decode_preauth_token(token: str) -> int:
+    """Return the pending user id, or raise 401."""
+    try:
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Sign-in session expired. Please log in again.")
+    if payload.get("realm") != PREAUTH_REALM:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return int(payload["sub"])
+
+
+# ──────────────────────────────────────────────
 # Applicant portal realm (separate cookie + JWT realm so an applicant
 # session can never be replayed against staff endpoints, and vice versa)
 # ──────────────────────────────────────────────

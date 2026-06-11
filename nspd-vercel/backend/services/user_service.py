@@ -18,6 +18,7 @@ def serialize(user: User) -> dict:
         "email": user.email,
         "is_active": bool(user.is_active),
         "must_change_password": bool(user.must_change_password),
+        "totp_enabled": bool(user.totp_enabled),
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "last_login": user.last_login.isoformat() if user.last_login else None,
     }

@@ -48,6 +48,7 @@ from ..schemas import (
     PortalLoginRequest,
     PortalRegisterRequest,
     ResendVerificationRequest,
+    VoyageForm,
 )
 from ..services import (
     application_service,
@@ -58,6 +59,7 @@ from ..services import (
     recovery_service,
     storage_service,
     throttle_service,
+    voyage_service,
 )
 
 GENERIC_RESET_MESSAGE = (
@@ -422,6 +424,79 @@ def delete_certification(
         ip=get_client_ip(request),
     )
     return {"message": "Certification deleted"}
+
+
+# ──────────────────────────────────────────────
+# Voyage history (own application only)
+# ──────────────────────────────────────────────
+
+@router.get("/voyages")
+def list_voyages(
+    claims: dict = Depends(get_current_applicant),
+    db: Session = Depends(get_db),
+):
+    application = _get_own_application_or_404(db, claims["id"])
+    return voyage_service.list_for_application(db, application.id)
+
+
+@router.post("/voyages", status_code=201)
+def add_voyage(
+    body: VoyageForm,
+    request: Request,
+    claims: dict = Depends(get_current_applicant),
+    db: Session = Depends(get_db),
+):
+    application = _get_own_application_or_404(db, claims["id"])
+    if application.status not in portal_service.EDITABLE_STATUSES:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Your application is {application.status} and voyage records can no longer be changed.",
+        )
+    voyage = voyage_service.create(db, application.id, body, added_by=None)
+    audit_service.log(
+        db,
+        audit_service.VOYAGE_ADDED,
+        username=throttle_service.portal_identity(claims["email"]),
+        entity="application",
+        entity_id=application.id,
+        details=f"{voyage.vessel_name} ({voyage.employer or 'no employer'})",
+        ip=get_client_ip(request),
+    )
+    return {"voyage": voyage_service.serialize(voyage)}
+
+
+@router.delete("/voyages/{voyage_id}")
+def delete_voyage(
+    voyage_id: int,
+    request: Request,
+    claims: dict = Depends(get_current_applicant),
+    db: Session = Depends(get_db),
+):
+    application = _get_own_application_or_404(db, claims["id"])
+    voyage = voyage_service.get_or_404(db, voyage_id)
+
+    if voyage.application_id != application.id:
+        raise HTTPException(status_code=404, detail="Voyage not found")
+    if voyage.added_by is not None:
+        raise HTTPException(status_code=403, detail="Records added by GMA staff cannot be removed")
+    if application.status not in portal_service.EDITABLE_STATUSES:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Your application is {application.status} and voyage records can no longer be changed.",
+        )
+
+    vessel = voyage.vessel_name
+    voyage_service.delete(db, voyage)
+    audit_service.log(
+        db,
+        audit_service.VOYAGE_DELETED,
+        username=throttle_service.portal_identity(claims["email"]),
+        entity="application",
+        entity_id=application.id,
+        details=vessel,
+        ip=get_client_ip(request),
+    )
+    return {"message": "Voyage deleted"}
 
 
 # ──────────────────────────────────────────────

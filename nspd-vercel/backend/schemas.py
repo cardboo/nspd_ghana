@@ -112,6 +112,37 @@ class CertificationForm(BaseModel):
     issuer: Optional[str] = Field(None, max_length=150)
 
 
+class VoyageForm(BaseModel):
+    vessel_name: str = Field(..., min_length=1, max_length=150)
+    vessel_type: Optional[str] = Field(None, max_length=100)
+    imo_number: Optional[str] = Field(None, max_length=20)
+    employer: Optional[str] = Field(None, max_length=150)
+    rank_held: Optional[str] = Field(None, max_length=100)
+    signed_on: Optional[date] = None
+    signed_off: Optional[date] = None
+    remarks: Optional[str] = Field(None, max_length=500)
+
+
+class BulkStatusRequest(BaseModel):
+    # Capped so per-applicant notification emails fit a serverless invocation
+    ids: list[int] = Field(..., min_length=1, max_length=20)
+    status: STATUSES
+
+
+class TotpCodeRequest(BaseModel):
+    code: str = Field(..., min_length=6, max_length=8)
+
+
+class TotpLoginRequest(BaseModel):
+    pre_auth_token: str = Field(..., min_length=20)
+    code: str = Field(..., min_length=6, max_length=8)
+
+
+class TotpDisableRequest(BaseModel):
+    password: str = Field(..., min_length=1, max_length=255)
+    code: str = Field(..., min_length=6, max_length=8)
+
+
 class ApplicationForm(BaseModel):
     """Fields a seafarer fills in — mirrors the applications table columns.
 

@@ -136,6 +136,42 @@
             </form>
         </div>
 
+        <!-- Voyage history -->
+        <div class="card detail-card" id="voyagesCard" style="display:none">
+            <h3 class="detail-section-title">My Sea Service</h3>
+            <p class="muted">Record your voyages — vessel, employer, and sign-on/off dates. Leave "signed off" empty while you are still on board.</p>
+            <div class="muted" id="voyageSummary" style="margin-bottom: 8px;"></div>
+            <div id="voyagesList" class="muted">Loading...</div>
+            <form id="voyageForm" class="inline-form" style="margin-top: 14px;">
+                <div class="filter-group" style="flex:1; min-width:160px;">
+                    <label>Vessel *</label>
+                    <input type="text" id="voyVessel" class="form-control" maxlength="150">
+                </div>
+                <div class="filter-group">
+                    <label>Type</label>
+                    <input type="text" id="voyType" class="form-control" maxlength="100" placeholder="e.g. CONTAINER">
+                </div>
+                <div class="filter-group">
+                    <label>Employer</label>
+                    <input type="text" id="voyEmployer" class="form-control" maxlength="150">
+                </div>
+                <div class="filter-group">
+                    <label>Rank Held</label>
+                    <input type="text" id="voyRank" class="form-control" maxlength="100">
+                </div>
+                <div class="filter-group">
+                    <label>Signed On</label>
+                    <input type="date" id="voySignedOn" class="form-control">
+                </div>
+                <div class="filter-group">
+                    <label>Signed Off</label>
+                    <input type="date" id="voySignedOff" class="form-control">
+                </div>
+                <button type="submit" class="btn btn-primary">Add</button>
+                <span class="muted" id="voyageMessage"></span>
+            </form>
+        </div>
+
         <!-- Documents -->
         <div class="card detail-card" id="documentsCard" style="display:none">
             <h3 class="detail-section-title">My Documents</h3>

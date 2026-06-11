@@ -14,7 +14,7 @@ from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import Session
 
 from ..models import Application, ApplicationComment, AuditLog, User
-from . import certification_service
+from . import certification_service, voyage_service
 
 PER_PAGE = 10
 
@@ -152,6 +152,7 @@ def get_dashboard_stats(db: Session) -> dict:
         "recent_24h": int(recent_24h),
         "pending_review": status_counts.get("Pending", 0) + status_counts.get("Under Review", 0),
         "expiring_certs": int(certification_service.count_expiring(db)),
+        "onboard_count": int(voyage_service.count_onboard(db)),
         "status_counts": status_counts,
         "recent_submissions": [serialize_summary(a) for a in recent],
     }

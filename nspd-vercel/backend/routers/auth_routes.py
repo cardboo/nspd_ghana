@@ -6,6 +6,7 @@ logout.php        -> POST /api/auth/logout
 session check     -> GET  /api/auth/me
 """
 
+import pyotp
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -13,6 +14,8 @@ from sqlalchemy.orm import Session
 from ..auth import (
     clear_auth_cookie,
     create_access_token,
+    create_preauth_token,
+    decode_preauth_token,
     get_client_ip,
     get_current_user,
     set_auth_cookie,
@@ -21,7 +24,13 @@ from ..auth import (
 from ..config import settings
 from ..database import get_db
 from ..models import User
-from ..schemas import CompleteResetRequest, ForgotPasswordRequest, LoginRequest, UserOut
+from ..schemas import (
+    CompleteResetRequest,
+    ForgotPasswordRequest,
+    LoginRequest,
+    TotpLoginRequest,
+    UserOut,
+)
 from ..services import audit_service, recovery_service, throttle_service
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -75,8 +84,17 @@ def login(
         )
         raise HTTPException(status_code=401, detail="This account has been deactivated")
 
-    # Successful login: clear the failure counter, update last_login
-    throttle_service.record_success(db, credentials.username, ip)
+    # Two-factor: password accepted, but the session is only issued after
+    # the TOTP step. The failure counter is NOT cleared yet.
+    if user.totp_enabled and user.totp_secret:
+        return {"totp_required": True, "pre_auth_token": create_preauth_token(user)}
+
+    return _complete_login(db, user, ip, response)
+
+
+def _complete_login(db: Session, user: User, ip: str, response: Response) -> dict:
+    """Shared final step of login: clear failures, stamp last_login, set cookie."""
+    throttle_service.record_success(db, user.username, ip)
     user.last_login = func.now()
     db.commit()
 
@@ -100,6 +118,41 @@ def login(
             must_change_password=bool(user.must_change_password),
         )
     }
+
+
+@router.post("/totp")
+def totp_login(
+    body: TotpLoginRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """Complete a two-factor login with the authenticator code."""
+    ip = get_client_ip(request)
+    user_id = decode_preauth_token(body.pre_auth_token.strip())
+
+    user = db.get(User, user_id)
+    if user is None or not user.is_active or not user.totp_enabled or not user.totp_secret:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    # Failed codes count toward the same lockout as failed passwords
+    if throttle_service.is_locked_out(db, user.username, ip):
+        audit_service.log(db, audit_service.LOGIN_LOCKED, username=user.username, ip=ip)
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                "Too many failed login attempts. "
+                f"Please try again in {settings.lockout_window_minutes} minutes."
+            ),
+        )
+
+    totp = pyotp.TOTP(user.totp_secret)
+    if not totp.verify(body.code.strip(), valid_window=1):
+        throttle_service.record_failure(db, user.username, ip)
+        audit_service.log(db, audit_service.LOGIN_TOTP_FAILED, username=user.username, ip=ip)
+        raise HTTPException(status_code=401, detail="Invalid authentication code")
+
+    return _complete_login(db, user, ip, response)
 
 
 @router.post("/forgot-password")

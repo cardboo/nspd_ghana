@@ -45,9 +45,46 @@
                         <button type="submit" class="btn btn-primary">Change Password</button>
                     </form>
                 </div>
+
+                <!-- Two-Factor Authentication -->
+                <div class="card detail-card">
+                    <h3 class="detail-section-title">Two-Factor Authentication</h3>
+                    <div class="alert alert-danger" id="totpError" style="display:none"></div>
+                    <div class="alert-info" id="totpSuccess" style="display:none"></div>
+                    <p id="totpStatus" class="muted">Loading...</p>
+
+                    <!-- Enable flow -->
+                    <button id="totpSetupBtn" class="btn btn-primary" style="display:none">Set Up 2FA</button>
+                    <div id="totpSetupPanel" style="display:none; max-width: 480px;">
+                        <p class="muted">Scan this QR code with Google Authenticator, Authy, or any TOTP app — or enter the secret manually — then confirm a code below.</p>
+                        <div id="totpQr" style="margin: 12px 0;"></div>
+                        <p class="muted">Secret: <code id="totpSecret"></code></p>
+                        <div class="inline-form">
+                            <div class="filter-group">
+                                <label>6-digit code</label>
+                                <input type="text" id="totpEnableCode" class="form-control" maxlength="8" inputmode="numeric" autocomplete="one-time-code">
+                            </div>
+                            <button id="totpEnableBtn" class="btn btn-primary">Enable 2FA</button>
+                        </div>
+                    </div>
+
+                    <!-- Disable flow -->
+                    <form id="totpDisableForm" style="display:none; max-width: 420px;">
+                        <div class="form-group">
+                            <label for="totpDisablePassword">Password</label>
+                            <input type="password" id="totpDisablePassword" class="form-control" required autocomplete="current-password">
+                        </div>
+                        <div class="form-group">
+                            <label for="totpDisableCode">Current 6-digit code</label>
+                            <input type="text" id="totpDisableCode" class="form-control" required maxlength="8" inputmode="numeric" autocomplete="one-time-code">
+                        </div>
+                        <button type="submit" class="btn btn-secondary">Disable 2FA</button>
+                    </form>
+                </div>
             </div>
         </main>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script src="js/api.js"></script>
     <script src="js/sidebar.js"></script>
     <script src="js/layout.js"></script>

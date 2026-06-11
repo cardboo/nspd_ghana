@@ -57,9 +57,18 @@
             <!-- Table -->
             <div class="card">
                 <div class="table-container">
+                    <!-- Bulk actions (Reviewer+) -->
+                    <div class="status-actions" id="bulkBar" style="display:none; padding: 0 0 12px;">
+                        <span><strong id="bulkCount">0</strong> selected (max 20)</span>
+                        <button class="btn btn-secondary btn-sm" data-bulk="Under Review">Mark Under Review</button>
+                        <button class="btn btn-primary btn-sm" data-bulk="Approved">Approve</button>
+                        <button class="btn btn-secondary btn-sm" data-bulk="Rejected" style="background:#ef4444;color:#fff;">Reject</button>
+                        <span class="muted" id="bulkMessage"></span>
+                    </div>
                     <table>
                         <thead>
                             <tr id="submissionsHead">
+                                <th class="text-center" id="selectAllTh" style="display:none"><input type="checkbox" id="selectAll" title="Select all on this page"></th>
                                 <th data-sort="name">Name</th>
                                 <th data-sort="rank">Rank</th>
                                 <th data-sort="email">Email</th>

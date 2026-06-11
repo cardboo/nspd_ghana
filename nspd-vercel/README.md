@@ -33,6 +33,10 @@ Every feature is preserved: login/logout, role-based access control (Administrat
 | **Applicant administration** | Admins see all seafarer accounts on the Users page: verification state, linked application, deactivate/reactivate, resend verification emails |
 | **Scheduled cleanup** | Vercel Cron job deletes never-verified accounts after 30 days (`/api/cron/cleanup-unverified`, protected by `CRON_SECRET`) |
 | **Registration throttling** | Public endpoints (register, forgot-password, resend-verification) are rate-limited per IP |
+| **Bulk review actions** | Select up to 20 applications and approve/reject/mark under review in one click — each applicant is still emailed individually |
+| **Voyage & employment history** | Per-seafarer sea-service log (vessel, employer, rank, sign-on/off); open voyages mark the seafarer as currently on board; total logged days computed; applicants maintain their own records on the portal |
+| **Two-factor authentication** | Optional TOTP (Google Authenticator/Authy) for staff accounts, enrolled from the My Account page with a QR code; failed codes feed the same lockout throttle |
+| **Weekly admin digest** | Monday-morning email to active Administrators: new submissions, pending queue, expiring certificates, seafarers on board |
 | **Certification tracking** | Certificates and medicals carry real issue/expiry dates (the old registry only had Yes/No flags); staff and applicants manage them on the detail/portal pages |
 | **Expiry Watch** | Staff page listing certificates expired or expiring within 30–365 days, plus a dashboard card; a weekly cron emails applicants (one mail per seafarer, repeated at most every 14 days) |
 | **Ghana Card number** | Required on new portal applications, normalised and protected by a UNIQUE index — duplicate submissions become structurally impossible going forward; searchable and included in CSV/PDF exports |
@@ -150,6 +154,22 @@ Portal pages: `portal-register.html`, `portal-login.html`, `verify.html`, `porta
 | GET    | `/api/cron/cleanup-unverified`               | Cron   | Delete unverified accounts older than the retention window (Bearer `CRON_SECRET`) |
 
 Recovery pages: `forgot-password.html` and `reset-password.html`, realm-selected by `?for=staff` or `?for=portal`.
+
+### Placement, bulk actions & 2FA endpoints
+
+| Method | Endpoint                                  | Auth      | Description |
+|--------|-------------------------------------------|-----------|-------------|
+| POST   | `/api/applications/bulk-status`           | Reviewer+ | `{ids: [...], status}` — max 20, applicants emailed, audited |
+| GET    | `/api/applications/{id}/voyages`          | Cookie    | Voyage list + sea-service summary |
+| POST   | `/api/applications/{id}/voyages`          | Reviewer+ | Add a voyage record |
+| DELETE | `/api/applications/voyages/{id}`          | Reviewer+ | Remove a voyage record |
+| GET/POST | `/api/portal/voyages`                   | Portal    | Applicant's own voyages (editable while Pending/Rejected) |
+| DELETE | `/api/portal/voyages/{id}`                | Portal    | Remove own self-added voyage |
+| POST   | `/api/account/2fa/setup`                  | Cookie    | Generate a TOTP secret + otpauth URI |
+| POST   | `/api/account/2fa/enable`                 | Cookie    | Confirm a code, switch 2FA on |
+| POST   | `/api/account/2fa/disable`                | Cookie    | Password + code, switch 2FA off |
+| POST   | `/api/auth/totp`                          | —         | Complete a 2FA login (`{pre_auth_token, code}`) |
+| GET    | `/api/cron/weekly-digest`                 | Cron      | Email the weekly summary to active Administrators (Mondays 07:00) |
 
 ### Certification & compliance endpoints
 

@@ -14,6 +14,7 @@
         document.getElementById('statRecent').textContent = fmtNumber(data.recent_24h);
         document.getElementById('statPending').textContent = fmtNumber(data.pending_review);
         document.getElementById('statExpiring').textContent = fmtNumber(data.expiring_certs);
+        document.getElementById('statOnboard').textContent = fmtNumber(data.onboard_count);
 
         var tbody = document.getElementById('recentBody');
         var rows = data.recent_submissions || [];

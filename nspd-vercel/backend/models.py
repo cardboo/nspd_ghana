@@ -43,6 +43,8 @@ class User(Base):
     must_change_password = Column(Boolean, nullable=False, default=False)
     reset_token = Column(String(64), nullable=True)
     reset_token_expires = Column(TIMESTAMP, nullable=True)
+    totp_secret = Column(String(64), nullable=True)
+    totp_enabled = Column(Boolean, nullable=False, default=False)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     last_login = Column(TIMESTAMP, nullable=True)
 
@@ -93,6 +95,31 @@ class Certification(Base):
     issuer = Column(String(150), nullable=True)
     added_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     last_alerted_at = Column(TIMESTAMP, nullable=True)
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
+
+
+class Voyage(Base):
+    """One sea-service engagement — vessel, employer, and sign-on/off dates.
+
+    An open voyage (signed_off IS NULL) means the seafarer is currently
+    on board.
+    """
+
+    __tablename__ = "voyages"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    application_id = Column(
+        Integer, ForeignKey("applications.id", ondelete="CASCADE"), nullable=False
+    )
+    vessel_name = Column(String(150), nullable=False)
+    vessel_type = Column(String(100), nullable=True)
+    imo_number = Column(String(20), nullable=True)
+    employer = Column(String(150), nullable=True)
+    rank_held = Column(String(100), nullable=True)
+    signed_on = Column(Date, nullable=True)
+    signed_off = Column(Date, nullable=True)
+    remarks = Column(String(500), nullable=True)
+    added_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
 
 

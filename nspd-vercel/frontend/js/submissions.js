@@ -51,14 +51,20 @@
     });
   }
 
+  var canBulk = false;
+
   function renderRows(items) {
     var tbody = document.getElementById('submissionsBody');
+    var columns = canBulk ? 9 : 8;
     if (!items.length) {
-      tbody.innerHTML = '<tr><td colspan="8" class="table-empty">No submissions found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="' + columns + '" class="table-empty">No submissions found</td></tr>';
       return;
     }
     tbody.innerHTML = items.map(function (app) {
       return '<tr>' +
+        (canBulk
+          ? '<td class="text-center"><input type="checkbox" class="row-select" value="' + app.id + '"></td>'
+          : '') +
         '<td>' + esc(app.first_name + ' ' + app.surname) + '</td>' +
         '<td><strong class="text-primary">' + esc(app.position_rank) + '</strong></td>' +
         '<td class="text-sm">' + esc(app.email) + '</td>' +
@@ -71,6 +77,67 @@
         '</td>' +
       '</tr>';
     }).join('');
+
+    if (canBulk) {
+      tbody.querySelectorAll('.row-select').forEach(function (box) {
+        box.addEventListener('change', updateBulkBar);
+      });
+    }
+  }
+
+  // ── Bulk review actions (Reviewer+) ──
+
+  function selectedIds() {
+    return Array.from(document.querySelectorAll('.row-select:checked')).map(function (box) {
+      return parseInt(box.value, 10);
+    });
+  }
+
+  function updateBulkBar() {
+    var count = selectedIds().length;
+    document.getElementById('bulkCount').textContent = count;
+    document.getElementById('bulkBar').style.display = count ? '' : 'none';
+  }
+
+  function wireBulkActions() {
+    document.getElementById('selectAllTh').style.display = '';
+    document.getElementById('selectAll').addEventListener('change', function () {
+      var checked = this.checked;
+      document.querySelectorAll('.row-select').forEach(function (box) { box.checked = checked; });
+      updateBulkBar();
+    });
+
+    document.querySelectorAll('#bulkBar button[data-bulk]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var ids = selectedIds();
+        var newStatus = button.getAttribute('data-bulk');
+        var message = document.getElementById('bulkMessage');
+        if (!ids.length) return;
+        if (ids.length > 20) {
+          message.textContent = 'Select at most 20 applications per action.';
+          return;
+        }
+        if (!window.confirm('Set ' + ids.length + ' application(s) to "' + newStatus + '"?')) return;
+
+        message.textContent = 'Working...';
+        API.fetch('/api/applications/bulk-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: ids, status: newStatus })
+        })
+          .then(function (response) {
+            return response.json().then(function (data) {
+              if (!response.ok) throw new Error((data.detail && data.detail.toString()) || 'Bulk update failed');
+              message.textContent = data.updated.length + ' updated, ' +
+                data.skipped.length + ' skipped. Reloading...';
+              setTimeout(function () { window.location.reload(); }, 900);
+            });
+          })
+          .catch(function (error) {
+            message.textContent = error.message || 'Bulk update failed.';
+          });
+      });
+    });
   }
 
   function renderPagination(currentPage, totalPages) {
@@ -113,13 +180,15 @@
 
     renderSortHeaders();
 
-    // Export CSV is restricted to Administrator/Reviewer, like the PHP page
+    // Export CSV and bulk actions are restricted to Administrator/Reviewer
     if (user.role === 'Administrator' || user.role === 'Reviewer') {
       var exportLink = document.getElementById('exportCsvLink');
       exportLink.href = '/api/exports/csv?' + new URLSearchParams({
         search: search, rank: rank, status: status
       });
       exportLink.style.display = '';
+      canBulk = true;
+      wireBulkActions();
     }
 
     // Rank filter dropdown

@@ -10,9 +10,18 @@ GET /api/cron/cleanup-unverified  delete unverified portal accounts older
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
+from sqlalchemy import func, text
+
 from ..config import settings
 from ..database import get_db
-from ..services import audit_service, certification_service, recovery_service
+from ..models import Application, User
+from ..services import (
+    application_service,
+    audit_service,
+    certification_service,
+    email_service,
+    recovery_service,
+)
 
 router = APIRouter(prefix="/api/cron", tags=["Scheduled Jobs"])
 
@@ -45,6 +54,67 @@ def cleanup_unverified(
                     f"{settings.unverified_retention_days} days",
         )
     return {"deleted": deleted, "retention_days": settings.unverified_retention_days}
+
+
+@router.get("/weekly-digest")
+def weekly_digest(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Weekly: email every active Administrator a registry summary."""
+    _check_cron_auth(request)
+
+    stats = application_service.get_dashboard_stats(db)
+    new_last_week = (
+        db.query(func.count(Application.id))
+        .filter(Application.submitted_at >= text("NOW() - INTERVAL 7 DAY"))
+        .scalar()
+        or 0
+    )
+    status_counts = stats["status_counts"]
+
+    rows = "".join(
+        f"<tr><td style='padding:4px 12px 4px 0;'>{label}</td>"
+        f"<td style='padding:4px 0;'><strong>{value}</strong></td></tr>"
+        for label, value in [
+            ("New submissions (last 7 days)", new_last_week),
+            ("Total submissions", stats["total_submissions"]),
+            ("Pending review", stats["pending_review"]),
+            ("Approved", status_counts.get("Approved", 0)),
+            ("Rejected", status_counts.get("Rejected", 0)),
+            (f"Certificates expiring (≤{settings.expiry_warning_days}d)", stats["expiring_certs"]),
+            ("Seafarers currently on board", stats["onboard_count"]),
+        ]
+    )
+    body = f"""
+<p>Hello,</p>
+<p>Here is this week's NSPD Ghana registry summary:</p>
+<table>{rows}</table>
+<p>Sign in to the dashboard for details.</p>
+<p>— NSPD Ghana, automated weekly digest</p>
+"""
+
+    admins = (
+        db.query(User)
+        .filter(User.role == "Administrator", User.is_active.is_(True))
+        .all()
+    )
+    for admin in admins:
+        email_service.send_email(
+            db,
+            recipient=admin.email,
+            subject="NSPD Ghana — weekly registry digest",
+            html_body=body,
+        )
+
+    if admins:
+        audit_service.log(
+            db,
+            audit_service.WEEKLY_DIGEST,
+            username="cron",
+            details=f"sent to {len(admins)} administrators",
+        )
+    return {"recipients": len(admins), "new_last_week": int(new_last_week)}
 
 
 @router.get("/expiry-alerts")
