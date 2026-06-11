@@ -12,3 +12,7 @@ venv/
 
 # Local document storage (dev only; production uses Vercel Blob)
 uploads/
+
+# The parent repo ignores *.sql to protect data dumps with PII;
+# these schema-only migration files are safe and must be committed.
+!migrations/*.sql
