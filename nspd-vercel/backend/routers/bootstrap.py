@@ -1,5 +1,5 @@
 """
-TEMPORARY one-time data bootstrap endpoint.
+TEMPORARY one-time data bootstrap endpoints.
 
 Purpose: load the initial SQL dump into the managed database when the
 operator's own network cannot reach the database port directly (e.g. a
@@ -9,9 +9,9 @@ database, so the dump travels:
 
     operator -> Vercel (TLS/443) -> database (TLS)
 
-Security: guarded by the CRON_SECRET bearer token. This router executes
-arbitrary SQL and MUST be removed from main.py once the one-time load is
-done (see the deployment runbook).
+Security: guarded by the CRON_SECRET bearer token. These routes touch the
+database directly and MUST be removed from main.py once the one-time load
+is complete (see the deployment runbook).
 """
 
 import pymysql
@@ -32,7 +32,7 @@ def _authorize(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
-def _raw_connection() -> pymysql.connections.Connection:
+def _raw_connection() -> "pymysql.connections.Connection":
     """A dedicated multi-statement connection built from the app's DB settings."""
     url = make_url(settings.database_url)
     return pymysql.connect(
@@ -44,7 +44,39 @@ def _raw_connection() -> pymysql.connections.Connection:
         charset="utf8mb4",
         ssl=_ssl_arg(),
         client_flag=CLIENT.MULTI_STATEMENTS,
+        connect_timeout=10,
+        read_timeout=45,
+        write_timeout=45,
     )
+
+
+@router.get("/ping")
+def ping(request: Request):
+    """Diagnose the DB connection: reports success + server version, or the
+    exact driver error (so connection problems are visible, not a blank 500)."""
+    _authorize(request)
+    url = make_url(settings.database_url)
+    info = {
+        "host": url.host,
+        "port": url.port,
+        "user": url.username,
+        "database": url.database,
+        "db_ssl": settings.db_ssl,
+        "db_ssl_verify": settings.db_ssl_verify,
+    }
+    try:
+        conn = _raw_connection()
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "stage": "connect", "error": f"{type(exc).__name__}: {exc}", "config": info}
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT VERSION()")
+            version = cur.fetchone()[0]
+        return {"ok": True, "server_version": version, "config": info}
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "stage": "query", "error": f"{type(exc).__name__}: {exc}", "config": info}
+    finally:
+        conn.close()
 
 
 @router.post("/load-sql")
@@ -57,7 +89,11 @@ async def load_sql(request: Request):
     if not sql.strip():
         raise HTTPException(status_code=400, detail="Empty SQL body")
 
-    conn = _raw_connection()
+    try:
+        conn = _raw_connection()
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"DB connect failed: {type(exc).__name__}: {exc}")
+
     try:
         result_sets = 0
         with conn.cursor() as cur:
@@ -75,10 +111,10 @@ async def load_sql(request: Request):
                 try:
                     cur.execute(f"SELECT COUNT(*) FROM `{table}`")
                     counts[table] = cur.fetchone()[0]
-                except Exception:  # noqa: BLE001 - table may not exist if load failed
+                except Exception:  # noqa: BLE001
                     counts[table] = None
-    except Exception as exc:  # noqa: BLE001 - surface the DB error to the caller
-        raise HTTPException(status_code=500, detail=f"Load failed: {exc}")
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"Load failed: {type(exc).__name__}: {exc}")
     finally:
         conn.close()
 
