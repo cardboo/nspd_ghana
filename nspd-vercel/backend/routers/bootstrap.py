@@ -14,6 +14,8 @@ database directly and MUST be removed from main.py once the one-time load
 is complete (see the deployment runbook).
 """
 
+import socket
+
 import pymysql
 from fastapi import APIRouter, HTTPException, Request
 from pymysql.constants import CLIENT
@@ -52,31 +54,52 @@ def _raw_connection() -> "pymysql.connections.Connection":
 
 @router.get("/ping")
 def ping(request: Request):
-    """Diagnose the DB connection: reports success + server version, or the
-    exact driver error (so connection problems are visible, not a blank 500)."""
+    """Layered DB connectivity diagnostic: DNS -> raw TCP -> MySQL/TLS.
+    Each stage reports independently so we can see exactly where it breaks."""
     _authorize(request)
     url = make_url(settings.database_url)
-    info = {
-        "host": url.host,
-        "port": url.port,
-        "user": url.username,
-        "database": url.database,
-        "db_ssl": settings.db_ssl,
-        "db_ssl_verify": settings.db_ssl_verify,
+    host, port = url.host, (url.port or 3306)
+    result = {
+        "config": {
+            "host": host, "port": port, "user": url.username,
+            "database": url.database, "db_ssl": settings.db_ssl,
+            "db_ssl_verify": settings.db_ssl_verify,
+        },
+        "stages": {},
     }
+
+    # 1) DNS resolution — what IP(s) does the host resolve to on Vercel?
+    try:
+        infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+        result["stages"]["dns"] = sorted({ai[4][0] for ai in infos})
+    except Exception as exc:  # noqa: BLE001
+        result["stages"]["dns"] = f"ERR {type(exc).__name__}: {exc}"
+        return result
+
+    # 2) Raw TCP connect — can Vercel open a socket to the DB port at all?
+    try:
+        s = socket.create_connection((host, port), timeout=8)
+        s.close()
+        result["stages"]["tcp"] = "ok"
+    except Exception as exc:  # noqa: BLE001
+        result["stages"]["tcp"] = f"ERR {type(exc).__name__}: {exc}"
+
+    # 3) Full MySQL + TLS handshake
     try:
         conn = _raw_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT VERSION()")
+                result["stages"]["mysql"] = {"ok": True, "version": cur.fetchone()[0]}
+        finally:
+            conn.close()
     except Exception as exc:  # noqa: BLE001
-        return {"ok": False, "stage": "connect", "error": f"{type(exc).__name__}: {exc}", "config": info}
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT VERSION()")
-            version = cur.fetchone()[0]
-        return {"ok": True, "server_version": version, "config": info}
-    except Exception as exc:  # noqa: BLE001
-        return {"ok": False, "stage": "query", "error": f"{type(exc).__name__}: {exc}", "config": info}
-    finally:
-        conn.close()
+        result["stages"]["mysql"] = f"ERR {type(exc).__name__}: {exc}"
+
+    result["ok"] = result["stages"].get("mysql", {}) == {"ok": True} or (
+        isinstance(result["stages"].get("mysql"), dict) and result["stages"]["mysql"].get("ok")
+    )
+    return result
 
 
 @router.post("/load-sql")
