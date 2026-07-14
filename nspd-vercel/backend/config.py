@@ -40,8 +40,13 @@ class Settings:
         self.database_url: str = os.environ.get("DATABASE_URL") or _build_database_url()
         # Cloud MySQL providers (PlanetScale, Aiven, ...) require TLS.
         self.db_ssl: bool = _bool_env("DB_SSL", False)
-        # PEM contents of a private CA cert (e.g. Aiven's project CA). When
-        # empty, TLS verification falls back to the public certifi bundle.
+        # Verify the server certificate. Set DB_SSL_VERIFY=false to encrypt
+        # without verification — matches Aiven's ssl-mode=REQUIRED and avoids
+        # needing the provider's CA cert. When true (default), verify against
+        # DB_CA_CERT if provided, else the public certifi bundle.
+        self.db_ssl_verify: bool = _bool_env("DB_SSL_VERIFY", True)
+        # PEM contents of a private CA cert (e.g. Aiven's project CA). Used
+        # only when DB_SSL_VERIFY is true.
         self.db_ca_cert: str = os.environ.get("DB_CA_CERT", "")
 
         self.jwt_secret: str = os.environ.get("JWT_SECRET", "dev-only-secret-change-me")

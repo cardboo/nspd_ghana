@@ -7,6 +7,7 @@ across invocations leaks them against cloud MySQL connection limits.
 """
 
 import os
+import ssl
 import tempfile
 
 import certifi
@@ -34,9 +35,23 @@ def _ca_file() -> str:
     return certifi.where()
 
 
+def _ssl_arg():
+    """TLS config for the DB connection, or None when TLS is disabled."""
+    if not settings.db_ssl:
+        return None
+    if settings.db_ssl_verify:
+        return {"ca": _ca_file()}
+    # Encrypt without certificate verification (Aiven ssl-mode=REQUIRED).
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return ctx
+
+
 connect_args = {}
-if settings.db_ssl:
-    connect_args["ssl"] = {"ca": _ca_file()}
+_ssl = _ssl_arg()
+if _ssl is not None:
+    connect_args["ssl"] = _ssl
 
 engine = create_engine(
     settings.database_url,

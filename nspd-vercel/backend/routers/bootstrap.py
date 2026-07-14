@@ -20,7 +20,7 @@ from pymysql.constants import CLIENT
 from sqlalchemy.engine import make_url
 
 from ..config import settings
-from ..database import _ca_file
+from ..database import _ssl_arg
 
 router = APIRouter(prefix="/api/bootstrap", tags=["Bootstrap (temporary)"])
 
@@ -35,7 +35,6 @@ def _authorize(request: Request) -> None:
 def _raw_connection() -> pymysql.connections.Connection:
     """A dedicated multi-statement connection built from the app's DB settings."""
     url = make_url(settings.database_url)
-    ssl_arg = {"ca": _ca_file()} if settings.db_ssl else None
     return pymysql.connect(
         host=url.host,
         port=url.port or 3306,
@@ -43,7 +42,7 @@ def _raw_connection() -> pymysql.connections.Connection:
         password=url.password,
         database=url.database,
         charset="utf8mb4",
-        ssl=ssl_arg,
+        ssl=_ssl_arg(),
         client_flag=CLIENT.MULTI_STATEMENTS,
     )
 
