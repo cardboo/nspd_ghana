@@ -20,7 +20,6 @@ from .routers import (
     applications,
     audit,
     auth_routes,
-    bootstrap,  # TEMPORARY: remove after the one-time data load
     cron,
     dashboard,
     documents,
@@ -50,7 +49,6 @@ app.include_router(audit.router)
 app.include_router(portal.router)
 app.include_router(applicants_admin.router)
 app.include_router(cron.router)
-app.include_router(bootstrap.router)  # TEMPORARY: remove after the one-time data load
 
 
 @app.exception_handler(SQLAlchemyError)
