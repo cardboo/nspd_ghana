@@ -61,15 +61,19 @@ def _authorize(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
-def _raw_connection() -> "pymysql.connections.Connection":
+def _raw_connection(host_override=None, port_override=None) -> "pymysql.connections.Connection":
     """A dedicated multi-statement connection built from the app's DB settings.
 
     Connects by DoH-resolved IP to sidestep the runtime's broken resolver.
+    Optional host/port overrides let the operator supply the current endpoint
+    without re-editing env vars (Aiven's port can drift across power cycles).
     """
     url = make_url(settings.database_url)
+    host = host_override or url.host
+    port = int(port_override) if port_override else (url.port or 3306)
     return pymysql.connect(
-        host=_doh_resolve(url.host),
-        port=url.port or 3306,
+        host=_doh_resolve(host),
+        port=port,
         user=url.username,
         password=url.password,
         database=url.database,
@@ -83,12 +87,14 @@ def _raw_connection() -> "pymysql.connections.Connection":
 
 
 @router.get("/ping")
-def ping(request: Request):
+def ping(request: Request, host: str = None, port: int = None):
     """Layered DB connectivity diagnostic: DNS -> raw TCP -> MySQL/TLS.
-    Each stage reports independently so we can see exactly where it breaks."""
+    Each stage reports independently so we can see exactly where it breaks.
+    Optional ?host= and ?port= override the configured endpoint."""
     _authorize(request)
     url = make_url(settings.database_url)
-    host, port = url.host, (url.port or 3306)
+    host = host or url.host
+    port = port or url.port or 3306
     result = {
         "config": {
             "host": host, "port": port, "user": url.username,
@@ -124,7 +130,7 @@ def ping(request: Request):
 
     # 3) Full MySQL + TLS handshake
     try:
-        conn = _raw_connection()
+        conn = _raw_connection(host_override=host, port_override=port)
         try:
             with conn.cursor() as cur:
                 cur.execute("SELECT VERSION()")
@@ -141,8 +147,9 @@ def ping(request: Request):
 
 
 @router.post("/load-sql")
-async def load_sql(request: Request):
-    """Execute an uploaded SQL dump (idempotent when the dump uses DROP TABLE)."""
+async def load_sql(request: Request, host: str = None, port: int = None):
+    """Execute an uploaded SQL dump (idempotent when the dump uses DROP TABLE).
+    Optional ?host= and ?port= override the configured endpoint."""
     _authorize(request)
 
     # utf-8-sig transparently strips a leading BOM if present
@@ -151,7 +158,7 @@ async def load_sql(request: Request):
         raise HTTPException(status_code=400, detail="Empty SQL body")
 
     try:
-        conn = _raw_connection()
+        conn = _raw_connection(host_override=host, port_override=port)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"DB connect failed: {type(exc).__name__}: {exc}")
 
