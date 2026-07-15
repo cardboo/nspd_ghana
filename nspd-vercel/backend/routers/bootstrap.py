@@ -14,9 +14,11 @@ database directly and MUST be removed from main.py once the one-time load
 is complete (see the deployment runbook).
 """
 
+import ipaddress
 import socket
 
 import pymysql
+import requests
 from fastapi import APIRouter, HTTPException, Request
 from pymysql.constants import CLIENT
 from sqlalchemy.engine import make_url
@@ -27,6 +29,31 @@ from ..database import _ssl_arg
 router = APIRouter(prefix="/api/bootstrap", tags=["Bootstrap (temporary)"])
 
 
+def _doh_resolve(hostname: str) -> str:
+    """Resolve a hostname to an IPv4 via DNS-over-HTTPS (Cloudflare at 1.1.1.1).
+
+    Vercel's Python runtime can fail getaddrinfo with EBUSY, so we resolve
+    over HTTPS/443 (which works) by hitting 1.1.1.1 directly by IP — no
+    dependency on the local resolver.
+    """
+    try:
+        ipaddress.ip_address(hostname)
+        return hostname  # already an IP
+    except ValueError:
+        pass
+    resp = requests.get(
+        "https://1.1.1.1/dns-query",
+        params={"name": hostname, "type": "A"},
+        headers={"accept": "application/dns-json"},
+        timeout=8,
+    )
+    data = resp.json()
+    ips = [a["data"] for a in data.get("Answer", []) if a.get("type") == 1]
+    if not ips:
+        raise RuntimeError(f"DoH returned no A record for {hostname}")
+    return ips[0]
+
+
 def _authorize(request: Request) -> None:
     if not settings.cron_secret:
         raise HTTPException(status_code=503, detail="CRON_SECRET is not configured")
@@ -35,10 +62,13 @@ def _authorize(request: Request) -> None:
 
 
 def _raw_connection() -> "pymysql.connections.Connection":
-    """A dedicated multi-statement connection built from the app's DB settings."""
+    """A dedicated multi-statement connection built from the app's DB settings.
+
+    Connects by DoH-resolved IP to sidestep the runtime's broken resolver.
+    """
     url = make_url(settings.database_url)
     return pymysql.connect(
-        host=url.host,
+        host=_doh_resolve(url.host),
         port=url.port or 3306,
         user=url.username,
         password=url.password,
@@ -68,17 +98,25 @@ def ping(request: Request):
         "stages": {},
     }
 
-    # 1) DNS resolution — what IP(s) does the host resolve to on Vercel?
+    # 0) Native resolver (expected to fail on Vercel with EBUSY)
     try:
         infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
-        result["stages"]["dns"] = sorted({ai[4][0] for ai in infos})
+        result["stages"]["getaddrinfo"] = sorted({ai[4][0] for ai in infos})
     except Exception as exc:  # noqa: BLE001
-        result["stages"]["dns"] = f"ERR {type(exc).__name__}: {exc}"
+        result["stages"]["getaddrinfo"] = f"ERR {type(exc).__name__}: {exc}"
+
+    # 1) DNS-over-HTTPS resolution (the workaround)
+    ip = None
+    try:
+        ip = _doh_resolve(host)
+        result["stages"]["doh"] = ip
+    except Exception as exc:  # noqa: BLE001
+        result["stages"]["doh"] = f"ERR {type(exc).__name__}: {exc}"
         return result
 
-    # 2) Raw TCP connect — can Vercel open a socket to the DB port at all?
+    # 2) Raw TCP connect to the resolved IP
     try:
-        s = socket.create_connection((host, port), timeout=8)
+        s = socket.create_connection((ip, port), timeout=8)
         s.close()
         result["stages"]["tcp"] = "ok"
     except Exception as exc:  # noqa: BLE001
